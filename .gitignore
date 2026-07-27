@@ -52,3 +52,32 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Database files (regenerate from scripts/rebuild_legal_db.py)
+# 22 MB SQLite file — should NOT be committed to GitHub
+db/
+data/
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-journal
+
+# Upload folder (raw source data, gitignored)
+/upload/
+
+# Knowledge Layer data (per-project, may contain anonymized contracts)
+/knowledge/private/
+
+# Build artifacts
+/dist/
+/standalone/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
