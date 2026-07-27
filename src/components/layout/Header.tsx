@@ -35,7 +35,7 @@ export function Header() {
         <button
           onClick={() => navigate({ name: 'home' })}
           className="flex items-center gap-2.5 group"
-          aria-label="Thai Law Hub"
+          aria-label="Panya-AI"
         >
           <div className="relative">
             <div className="absolute inset-0 rounded-lg bg-gold/30 blur-md group-hover:bg-gold/50 transition" />
@@ -45,9 +45,9 @@ export function Header() {
           </div>
           <div className="flex flex-col items-start leading-none">
             <span className="text-base font-bold tracking-tight">
-              <span className="text-gradient-gold">ไทยลอว์ ฮับ</span>
+              <span className="text-gradient-gold">ปัญญา AI</span>
             </span>
-            <span className="text-[10px] text-muted-foreground tracking-widest uppercase">Thai Law Hub</span>
+            <span className="text-[10px] text-muted-foreground tracking-widest uppercase">Panya-AI</span>
           </div>
         </button>
 
@@ -133,7 +133,7 @@ export function Footer() {
               <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-gold to-gold/70 text-navy">
                 <Scale className="h-4 w-4" strokeWidth={2.5} />
               </div>
-              <span className="text-sm font-bold text-gradient-gold">ไทยลอว์ ฮับ</span>
+              <span className="text-sm font-bold text-gradient-gold">ปัญญา AI</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               ฐานข้อมูลกฎหมายไทยสำหรับการศึกษา รวบรวมจากสำนักงานคณะกรรมการกฤษฎีกา, PyThaiNLP,
@@ -160,7 +160,7 @@ export function Footer() {
         </div>
         <div className="mt-6 pt-6 border-t border-border/40 text-center">
           <p className="text-[11px] text-muted-foreground">
-            © {new Date().getFullYear()} Thai Law Hub · Built for educational use ·
+            © {new Date().getFullYear()} Panya-AI · Built for educational use ·
             Data sources: law.go.th · PyThaiNLP · deka.in.th · ops.mol.go.th · TSCC (academic)
           </p>
         </div>

@@ -1,6 +1,6 @@
 # 🚀 Deployment Guide — Vercel + Turso
 
-คู่มือฉบับสมบูรณ์สำหรับ deploy Thai Law Hub ไปยัง Vercel
+คู่มือฉบับสมบูรณ์สำหรับ deploy Panya-AI ไปยัง Vercel
 พร้อม migration จาก SQLite file → Turso libSQL (เพราะ Vercel serverless ใช้ SQLite file ไม่ได้)
 
 ---
@@ -50,7 +50,7 @@ Vercel serverless functions ไม่มี persistent filesystem — ไฟล�
 
 ```bash
 # ไปที่ https://github.com/new
-# ตั้งชื่อ: thai-law-hub (หรือชื่อที่ต้องการ)
+# ตั้งชื่อ: panya-ai (หรือชื่อที่ต้องการ)
 # เลือก Public หรือ Private ตามต้องการ
 # อย่าเลือก "Initialize with README" (เรามีไฟล์เองแล้ว)
 # คลิก "Create repository"
@@ -59,7 +59,7 @@ Vercel serverless functions ไม่มี persistent filesystem — ไฟล�
 ### 1.2 Initialize git + push
 
 ```bash
-cd /path/to/thai-law-hub
+cd /path/to/panya-ai
 
 # Initialize git
 git init
@@ -75,10 +75,10 @@ git status
 # ถ้าเห็น node_modules/, .next/, db/custom.db แสดงว่า .gitignore มีปัญหา
 
 # Commit
-git commit -m "Initial commit: Thai Law Hub — Next.js + Prisma + SQLite"
+git commit -m "Initial commit: Panya-AI — Next.js + Prisma + SQLite"
 
 # Add remote + push
-git remote add origin https://github.com/<your-username>/thai-law-hub.git
+git remote add origin https://github.com/<your-username>/panya-ai.git
 git push -u origin main
 ```
 
@@ -136,24 +136,24 @@ turso --version
 turso auth login
 
 # Create database (เลือก region ใกล้ผู้ใช้ — sin = Singapore)
-turso db create thai-law-hub --location sin
+turso db create panya-ai --location sin
 
 # รอจนกว่าจะ ready
 turso db list
 # ควรเห็น:
 # NAME             LOCATION  STATUS
-# thai-law-hub     sin       ready
+# panya-ai     sin       ready
 ```
 
 ### 2.3 Get connection details
 
 ```bash
 # Get URL (ใช้ใน DATABASE_URL)
-turso db show thai-law-hub --url
-# → libsql://thai-law-hub-<your-account>.turso.io
+turso db show panya-ai --url
+# → libsql://panya-ai-<your-account>.turso.io
 
 # Create auth token (ใช้ใน TURSO_AUTH_TOKEN)
-turso db tokens create thai-law-hub
+turso db tokens create panya-ai
 # → eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9...
 
 # เก็บค่าทั้งสองไว้ — จะใช้ใน Step 5
@@ -185,12 +185,12 @@ sqlite3 db/custom.db .dump > /tmp/thai_law_dump.sql
 sed -i '/PRAGMA/d; /BEGIN TRANSACTION/d; /COMMIT/d' /tmp/thai_law_dump.sql
 
 # Import to Turso
-turso db shell thai-law-hub < /tmp/thai_law_dump.sql
+turso db shell panya-ai < /tmp/thai_law_dump.sql
 
 # ตรวจสอบ
-turso db shell thai-law-hub "SELECT COUNT(*) FROM laws;"
+turso db shell panya-ai "SELECT COUNT(*) FROM laws;"
 # → 14
-turso db shell thai-law-hub "SELECT COUNT(*) FROM law_sections;"
+turso db shell panya-ai "SELECT COUNT(*) FROM law_sections;"
 # → 4441
 ```
 
@@ -198,7 +198,7 @@ turso db shell thai-law-hub "SELECT COUNT(*) FROM law_sections;"
 
 ```bash
 # ถ้าใช้ Turso CLI version ใหม่
-turso db shell thai-law-hub --file db/custom.db
+turso db shell panya-ai --file db/custom.db
 ```
 
 ### 3.4 ⚠️ Note about FTS5
@@ -206,10 +206,10 @@ turso db shell thai-law-hub --file db/custom.db
 Turso รองรับ FTS5 แต่ต้อง enable ก่อน:
 
 ```bash
-turso db shell thai-law-hub "SELECT * FROM law_sections_fts LIMIT 1;"
+turso db shell panya-ai "SELECT * FROM law_sections_fts LIMIT 1;"
 
 # ถ้า error ให้ recreate FTS5 index:
-turso db shell thai-law-hub << 'EOF'
+turso db shell panya-ai << 'EOF'
 CREATE VIRTUAL TABLE IF NOT EXISTS law_sections_fts USING fts5(
   section_text, article_key, law_id UNINDEXED, section_id UNINDEXED,
   content='law_sections', content_rowid='section_id'
@@ -294,7 +294,7 @@ bun run db:generate
 
 ```bash
 # แก้ .env ชั่วคราว
-DATABASE_URL=libsql://thai-law-hub-<your-account>.turso.io
+DATABASE_URL=libsql://panya-ai-<your-account>.turso.io
 TURSO_AUTH_TOKEN=<your-token>
 
 # รัน dev server
@@ -311,7 +311,7 @@ bun run dev
 
 1. ไปที่ [vercel.com/new](https://vercel.com/new)
 2. คลิก **"Import Git Repository"**
-3. เลือก GitHub repo `thai-law-hub` ของคุณ
+3. เลือก GitHub repo `panya-ai` ของคุณ
 4. Vercel จะ detect Next.js อัตโนมัติ
 
 ### 5.2 Configure Environment Variables
@@ -320,7 +320,7 @@ bun run dev
 
 | Name | Value | Environments |
 |------|-------|--------------|
-| `DATABASE_URL` | `libsql://thai-law-hub-<your-account>.turso.io` | Production, Preview, Development |
+| `DATABASE_URL` | `libsql://panya-ai-<your-account>.turso.io` | Production, Preview, Development |
 | `TURSO_AUTH_TOKEN` | `eyJhbGciOi...` (from Step 2.3) | Production, Preview, Development |
 | `Z_AI_API_KEY` | (your Z.AI API key) | Production, Preview, Development |
 
@@ -330,7 +330,7 @@ bun run dev
 
 1. คลิก **"Deploy"**
 2. รอ 2-3 นาที (build + deploy)
-3. เมื่อเสร็จ Vercel จะให้ URL: `https://thai-law-hub.vercel.app`
+3. เมื่อเสร็จ Vercel จะให้ URL: `https://panya-ai.vercel.app`
 4. คลิกเพื่อเปิดแอป 🎉
 
 ### 5.4 Set custom domain (optional)
@@ -388,7 +388,7 @@ bun run db:generate
 ### Problem: FTS5 not working on Turso
 ```bash
 # Recreate FTS5 indexes
-turso db shell thai-law-hub << 'EOF'
+turso db shell panya-ai << 'EOF'
 DROP TABLE IF EXISTS law_sections_fts;
 CREATE VIRTUAL TABLE law_sections_fts USING fts5(
   section_text, article_key, law_id UNINDEXED, section_id UNINDEXED,

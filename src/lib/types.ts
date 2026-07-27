@@ -1,4 +1,4 @@
-// Shared types for Thai Law Hub
+// Shared types for Panya-AI
 
 export type LawCategory =
   | 'labor'

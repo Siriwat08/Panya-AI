@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ไทยลอว์ ฮับ | Thai Law Hub — ฐานข้อมูลกฎหมายไทย",
+  title: "ปัญญา AI | Panya-AI — ฐานข้อมูลกฎหมายไทย",
   description:
     "ศูนย์ข้อมูลกฎหมายไทย — กฎหมายแรงงาน ป.พ.พ. ป.อ. และคำพิพากษาศาลฎีกา พร้อม AI ถามตอบพร้อมอ้างอิงมาตรา",
   keywords: [
@@ -37,12 +37,12 @@ export const metadata: Metadata = {
     "Labor law Thailand",
     "Supreme Court judgments",
   ],
-  authors: [{ name: "Thai Law Hub" }],
+  authors: [{ name: "Panya-AI" }],
   icons: {
     icon: "/favicon.ico",
   },
   openGraph: {
-    title: "Thai Law Hub — ฐานข้อมูลกฎหมายไทย",
+    title: "Panya-AI — ฐานข้อมูลกฎหมายไทย",
     description:
       "กฎหมายแรงงาน ป.พ.พ. ป.อ. และคำพิพากษาศาลฎีกา พร้อม AI ถามตอบ",
     type: "website",

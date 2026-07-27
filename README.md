@@ -1,4 +1,4 @@
-# 🇹🇭 Thai Law Hub — ฐานข้อมูลกฎหมายไทย + AI ตรวจสัญญา
+# 🇹🇭 Panya-AI — ฐานข้อมูลกฎหมายไทย + AI ตรวจสัญญา
 
 > เว็บแอปฐานข้อมูลกฎหมายไทย พร้อม AI RAG ถาม-ตอบพร้อมอ้างอิงมาตรา/ฎีกา
 > ออกแบบมาเพื่อการตรวจสอบสัญญา ประเมินความเสี่ยงทางกฎหมาย และค้นหาข้อมูลกฎหมาย
@@ -69,7 +69,7 @@
 ## 📦 Project Structure
 
 ```
-thai-law-hub/
+panya-ai/
 ├── prisma/
 │   ├── schema.prisma              # Prisma schema (SQLite)
 │   └── thai_legal_db.sqlite       # Generated DB (gitignored)
@@ -121,8 +121,8 @@ thai-law-hub/
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/<your-username>/thai-law-hub.git
-cd thai-law-hub
+git clone https://github.com/<your-username>/panya-ai.git
+cd panya-ai
 bun install  # or npm install
 ```
 

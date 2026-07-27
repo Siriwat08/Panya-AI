@@ -4,7 +4,7 @@ description: "Extract, structure, and build databases from Thai legal sources fo
 license: MIT
 metadata:
   version: '2.0'
-  author: 'Thai Law Hub'
+  author: 'Panya-AI'
   language: 'th'
   last_updated: '2026-07-27'
 ---
@@ -508,17 +508,17 @@ curl -sSfL https://get.tur.so/install.sh | bash
 
 # 2. Login + create database
 turso auth login
-turso db create thai-law-hub --location sin
+turso db create panya-ai --location sin
 
 # 3. Get connection string + token
-turso db show thai-law-hub --url
-turso db tokens create thai-law-hub
+turso db show panya-ai --url
+turso db tokens create panya-ai
 
 # 4. Import existing SQLite data
-turso db shell thai-law-hub < prisma/thai_legal_db.sqlite
+turso db shell panya-ai < prisma/thai_legal_db.sqlite
 
 # 5. Update .env
-DATABASE_URL=libsql://thai-law-hub-<your-account>.turso.io
+DATABASE_URL=libsql://panya-ai-<your-account>.turso.io
 TURSO_AUTH_TOKEN=<your-token>
 
 # 6. Switch Prisma to libsql driver
@@ -660,7 +660,7 @@ LIMIT 20;
 ## 14. File Structure (Reference)
 
 ```
-thai-law-hub/
+panya-ai/
 ├── prisma/
 │   ├── schema.prisma              # Current (SQLite file)
 │   └── schema.turso.prisma        # Vercel variant (libsql)

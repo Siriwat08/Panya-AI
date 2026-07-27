@@ -6,7 +6,7 @@ import ZAI from 'z-ai-web-dev-sdk';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `คุณเป็นผู้ช่วยวิเคราะห์กฎหมายไทย "Thai Law Hub"
+const SYSTEM_PROMPT = `คุณเป็นผู้ช่วยวิเคราะห์กฎหมายไทย "Panya-AI"
 หน้าที่ของคุณ:
 1. ตอบคำถามกฎหมายไทยเป็นภาษาธรรมดาที่คนทั่วไปเข้าใจได้ ไม่ใช้ภาษานิติบัญญัติซับซ้อน
 2. อ้างอิง "มาตรา" หรือ "คำพิพากษาฎีกา" จากข้อมูลที่ให้เท่านั้น ห้าม invent มาตราหรือฎีกาที่ไม่มีใน context
