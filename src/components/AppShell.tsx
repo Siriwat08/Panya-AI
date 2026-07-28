@@ -11,6 +11,7 @@ import { JudgmentView } from '@/components/judgment/JudgmentView';
 import { SearchView } from '@/components/search/SearchView';
 import { AskView } from '@/components/chat/AskView';
 import { BookmarksView } from '@/components/common/BookmarksView';
+import { TemplatesView } from '@/components/templates/TemplatesView';
 import type { View } from '@/lib/types';
 
 function parseView(): View {
@@ -29,6 +30,7 @@ function parseView(): View {
     case 'judgment': return { name: 'judgment', judgmentId: id ? parseInt(id, 10) : 0 };
     case 'search': return { name: 'search', q: q || undefined, type: type || 'all' };
     case 'bookmarks': return { name: 'bookmarks' };
+    case 'templates': return { name: 'templates' };
     case 'ask': return { name: 'ask' };
     default: return { name: 'home' };
   }
@@ -66,6 +68,7 @@ export function AppShell() {
         )}
         {view.name === 'ask' && <AskView />}
         {view.name === 'bookmarks' && <BookmarksView />}
+        {view.name === 'templates' && <TemplatesView />}
       </main>
       <Footer />
     </div>

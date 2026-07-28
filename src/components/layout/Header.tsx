@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, Menu, X } from 'lucide-react';
+import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, Menu, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigation } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { view: { name: 'judgments' } as const, label: 'คำพิพากษา', labelEn: 'Judgments', icon: Scale },
   { view: { name: 'search' } as const, label: 'ค้นหา', labelEn: 'Search', icon: Search },
   { view: { name: 'ask' } as const, label: 'ถาม AI', labelEn: 'Ask AI', icon: MessageSquare },
+  { view: { name: 'templates' } as const, label: 'เอกสาร', labelEn: 'Templates', icon: FileText },
   { view: { name: 'bookmarks' } as const, label: 'บันทึก', labelEn: 'Bookmarks', icon: Bookmark },
 ];
 

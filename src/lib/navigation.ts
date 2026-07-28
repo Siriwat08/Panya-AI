@@ -23,6 +23,7 @@ export function useNavigation() {
       case 'judgment': return { name: 'judgment', judgmentId: id ? parseInt(id, 10) : 0 };
       case 'search': return { name: 'search', q: q || undefined, type: type || 'all' };
       case 'bookmarks': return { name: 'bookmarks' };
+    case 'templates': return { name: 'templates' };
       case 'ask': return { name: 'ask' };
       default: return { name: 'home' };
     }
@@ -43,6 +44,7 @@ export function useNavigation() {
         if (view.type) params.set('type', view.type);
         break;
       case 'bookmarks': params.set('view', 'bookmarks'); break;
+      case 'templates': params.set('view', 'templates'); break;
       case 'ask': params.set('view', 'ask'); break;
     }
     const qs = params.toString();
