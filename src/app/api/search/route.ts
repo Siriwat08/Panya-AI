@@ -69,7 +69,10 @@ export async function GET(req: NextRequest) {
       }
     } catch (e) {
       console.error('Search section FTS failed:', e);
-      // LIKE fallback
+    }
+
+    // ALWAYS do LIKE fallback if FTS returned 0 results (Thai text issue)
+    if (sections.length === 0) {
       const likeRows = await db.lawSection.findMany({
         where: { sectionText: { contains: q } },
         take: limit,
@@ -132,7 +135,10 @@ export async function GET(req: NextRequest) {
       }));
     } catch (e) {
       console.error('Search judgment FTS failed:', e);
-      // LIKE fallback
+    }
+
+    // ALWAYS do LIKE fallback if FTS returned 0 results
+    if (judgments.length === 0) {
       const likeRows = await db.judgment.findMany({
         where: {
           OR: [
