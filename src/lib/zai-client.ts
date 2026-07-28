@@ -12,7 +12,6 @@ export interface ChatMessage {
 
 /**
  * Create a chat completion via Z.AI API.
- * Returns { content, raw } — content is extracted from multiple possible response shapes.
  */
 export async function createChatCompletion(
   messages: ChatMessage[],
@@ -42,10 +41,16 @@ export async function createChatCompletion(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Z.AI API error ${response.status}: ${errorText.slice(0, 300)}`);
+    throw new Error(`Z.AI API HTTP ${response.status}: ${errorText.slice(0, 500)}`);
   }
 
   const raw: any = await response.json();
+
+  // If Z.AI returned an error in body
+  if (raw?.error) {
+    const errMsg = typeof raw.error === 'string' ? raw.error : (raw.error.message || JSON.stringify(raw.error));
+    throw new Error(`Z.AI API body error: ${errMsg.slice(0, 300)}`);
+  }
 
   // Try multiple response shapes
   let content: string | null = null;
@@ -57,9 +62,7 @@ export async function createChatCompletion(
       raw?.result?.content ??
       raw?.choices?.[0]?.text ??
       null;
-  } catch (e) {
-    // ignore
-  }
+  } catch (e) {}
 
   if (!content) {
     console.error('[zai-client] Unexpected response shape:', JSON.stringify(raw).slice(0, 500));
