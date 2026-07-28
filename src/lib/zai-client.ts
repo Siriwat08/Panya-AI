@@ -1,7 +1,6 @@
 /**
  * Lightweight Z.AI API client (bypasses SDK to avoid .z-ai-config file requirement).
- * SDK requires a JSON config file at runtime which doesn't work on Vercel.
- * We call the API directly with fetch using Z_AI_API_KEY env var.
+ * Calls API directly with fetch using Z_AI_API_KEY env var.
  */
 
 const ZAI_BASE_URL = 'https://api.z.ai/api/paas/v4';
@@ -11,23 +10,14 @@ export interface ChatMessage {
   content: string;
 }
 
-export interface ChatCompletionResponse {
-  choices: Array<{
-    message?: { content: string };
-    delta?: { content: string };
-  }>;
-  // Capture other fields
-  [key: string]: any;
-}
-
 /**
  * Create a chat completion via Z.AI API.
- * Uses Z_AI_API_KEY env var.
+ * Returns { content, raw } — content is extracted from multiple possible response shapes.
  */
 export async function createChatCompletion(
   messages: ChatMessage[],
-  options: { stream?: boolean; maxDuration?: number } = {}
-): Promise<ChatCompletionResponse> {
+  options: { stream?: boolean; model?: string } = {}
+): Promise<{ content: string; raw: any }> {
   if (!process.env.Z_AI_API_KEY) {
     throw new Error('Z_AI_API_KEY environment variable is not set');
   }
@@ -55,5 +45,25 @@ export async function createChatCompletion(
     throw new Error(`Z.AI API error ${response.status}: ${errorText.slice(0, 300)}`);
   }
 
-  return await response.json() as ChatCompletionResponse;
+  const raw: any = await response.json();
+
+  // Try multiple response shapes
+  let content: string | null = null;
+  try {
+    content =
+      raw?.choices?.[0]?.message?.content ??
+      raw?.choices?.[0]?.delta?.content ??
+      raw?.content ??
+      raw?.result?.content ??
+      raw?.choices?.[0]?.text ??
+      null;
+  } catch (e) {
+    // ignore
+  }
+
+  if (!content) {
+    console.error('[zai-client] Unexpected response shape:', JSON.stringify(raw).slice(0, 500));
+  }
+
+  return { content: content || '', raw };
 }
