@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { retrieveRelevant, buildContext, buildCitations } from '@/lib/rag';
-import ZAI from 'z-ai-web-dev-sdk';
-import { ensureZaiConfig } from '@/lib/zai-config';
+import { createChatCompletion } from '@/lib/zai-client';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -72,16 +71,9 @@ ${context}
 
   messages.push({ role: 'user', content: userMsg });
 
-  // 3. Call ZAI chat completions
+  // 3. Call Z.AI chat completions API directly (bypass SDK config file)
   try {
-    ensureZaiConfig();
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages,
-      // Default model — let SDK pick
-      stream: false,
-      thinking: { type: 'disabled' },
-    });
+    const completion = await createChatCompletion(messages);
 
     // Extract assistant message content
     const content =
@@ -96,7 +88,7 @@ ${context}
       retrievedChunks: hits.length,
     });
   } catch (e: any) {
-    console.error('ZAI chat completion failed:', e);
+    console.error('Z.AI chat completion failed:', e);
     return NextResponse.json({
       error: 'AI service error',
       message: e?.message || 'Unknown error',
