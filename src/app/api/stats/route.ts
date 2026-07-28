@@ -8,22 +8,22 @@ export async function GET(_req: NextRequest) {
     totalLaws,
     totalSections,
     totalJudgments,
+    totalRegulations,
+    totalTemplates,
+    totalRagChunks,
+    totalCrossRefs,
     totalLaborSections,
-    totalLaborJudgments,
-    totalCriminalJudgments,
     laborLawCount,
-    caseLawLinks,
-    ragChunks,
   ] = await Promise.all([
     db.law.count(),
     db.lawSection.count(),
-    db.caseJudgment.count(),
-    db.lawSection.count({ where: { isLaborRelated: 1 } }),
-    db.caseJudgment.count({ where: { category: 'labor' } }),
-    db.caseJudgment.count({ where: { category: 'criminal' } }),
-    db.law.count({ where: { isLaborLaw: 1 } }),
-    db.caseLawLink.count(),
+    db.judgment.count(),
+    db.regulation.count(),
+    db.contractTemplate.count(),
     db.ragChunk.count(),
+    db.crossReference.count(),
+    db.lawSection.count({ where: { isLaborRelated: 1 } }),
+    db.law.count({ where: { category: 'labor' } }),
   ]);
 
   // Laws by category with section counts
@@ -31,7 +31,6 @@ export async function GET(_req: NextRequest) {
     select: {
       lawId: true,
       category: true,
-      isLaborLaw: true,
       sections: { select: { sectionId: true, isLaborRelated: true } },
     },
   });
@@ -50,16 +49,29 @@ export async function GET(_req: NextRequest) {
     laborSectionCount: v.laborSectionCount,
   }));
 
+  // Templates by category
+  const templates = await db.contractTemplate.findMany({
+    select: { category: true },
+  });
+  const templatesByCat: Record<string, number> = {};
+  for (const t of templates) {
+    const c = t.category || 'other';
+    templatesByCat[c] = (templatesByCat[c] || 0) + 1;
+  }
+
   return NextResponse.json({
     totalLaws,
     totalSections,
     totalJudgments,
+    totalRegulations,
+    totalTemplates,
+    totalRagChunks,
+    totalCrossRefs,
     totalLaborSections,
-    totalLaborJudgments,
-    totalCriminalJudgments,
     laborLawCount,
-    caseLawLinks,
-    ragChunks,
     lawsByCategory,
+    templatesByCategory: Object.entries(templatesByCat).map(([category, count]) => ({ category, count })),
+    version: '3.0',
+    lastUpdated: '2026-07-28',
   });
 }

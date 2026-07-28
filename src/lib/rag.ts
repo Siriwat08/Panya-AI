@@ -1,109 +1,175 @@
-// RAG helper — uses FTS5 for retrieval (no vector embeddings needed)
+// RAG helper v3.0 — uses FTS5 + LIKE fallback
 // Returns top-K chunks relevant to the user's query.
+// Searches across: law_sections, judgments, regulations, contract_templates
 
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 
 export interface RagHit {
   chunkId: number;
-  sourceType: string;
+  sourceType: string;  // 'law_section' | 'judgment' | 'regulation' | 'contract_template'
   sourceId: number;
   lawId: number | null;
   sectionId: number | null;
   judgmentId: number | null;
+  regulationId: number | null;
+  templateId: number | null;
   chunkText: string;
-  metadata: any;
-  // Joined display fields:
-  lawNameTh?: string;
-  articleKey?: string | null;
+  // Display fields:
+  lawTitle?: string | null;
+  lawCode?: string | null;
   sectionNumber?: string | null;
-  caseNumber?: string | null;
+  sectionNumberThai?: string | null;
+  dekaNo?: string | null;
   caseYear?: string | null;
+  caseType?: string | null;
+  judgmentTopic?: string | null;
+  regulationTitle?: string | null;
+  regulationCode?: string | null;
+  templateTitle?: string | null;
+  templateCode?: string | null;
+  templateCategory?: string | null;
   category?: string | null;
-  title?: string | null;
 }
 
-/**
- * Retrieve top-K chunks relevant to the query using FTS5 first,
- * then fall back to LIKE search on each token if FTS returns nothing.
- * Thai text has no word boundaries, so FTS5 with quoted phrases often misses.
- */
+function buildFtsQuery(query: string): string {
+  const safeQ = query.replace(/["']/g, ' ').trim();
+  if (!safeQ) return '';
+  const tokens = safeQ.split(/\s+/).filter(Boolean);
+  return tokens.map(t => `"${t}"`).join(' OR ');
+}
+
+const LEGAL_KEYWORDS = [
+  'เลิกจ้าง', 'ค่าจ้าง', 'ค่าชดเชย', 'ค่าล่วงเวลา', 'บุริมสิทธิ์', 'ลูกจ้าง', 'นายจ้าง',
+  'สัญญาจ้าง', 'แรงงาน', 'วันหยุด', 'วันลา', 'เงินเดือน', 'โบนัส', 'สวัสดิการ',
+  'หยุดงาน', 'ปิดงาน', 'ผู้รับเหมา', 'ทดแทน', 'อุทธรณ์', 'ฎีกา', 'คำพิพากษา',
+  'อายุความ', 'ศาลแรงงาน', 'ประกันสังคม', 'เงินทดแทน', 'จ้างทำของ', 'จ้างแรงงาน',
+  'เจ็บป่วย', 'ทุพพลภาพ', 'คลอดบุตร', 'ลาป่วย', 'ลากิจ', 'ทดลองงาน',
+  'สหภาพแรงงาน', 'ต่อรอง', 'นัดหยุดงาน', 'ฉ้อโกง', 'ยักยอก', 'ปลอมเอกสาร',
+  'หมิ่นประมาท', 'ละเมิด', 'ค่าเสียหาย', 'ค่าสินไหม', 'จำนอง', 'จำนำ',
+  'ค้ำประกัน', 'กู้ยืม', 'เช่า', 'ซื้อขาย', 'ตัวแทน', 'นายหน้า',
+  'NDA', 'ความลับ', 'ไม่แข่งขัน', 'Non-compete', 'PDPA', 'ข้อมูลส่วนบุคคล',
+  'ค่าจ้างขั้นต่ำ', 'พักงาน', 'ย้ายตำแหน่ง', 'ลดค่าจ้าง', 'ระเบียบวินัย',
+  'ข้อบังคับ', 'สนร', 'สปส', 'กองทุนเงินทดแทน', 'อุบัติเหตุ', 'อาชีวอนามัย',
+];
+
+function extractKeywords(query: string): string[] {
+  const cleaned = query.replace(/[?"'()\[\]{}]/g, ' ').trim();
+  const tokens = cleaned.split(/\s+/).filter(t => t.length >= 3);
+  const found: string[] = [];
+  for (const term of LEGAL_KEYWORDS) {
+    if (query.includes(term) && !found.includes(term)) found.push(term);
+    if (found.length >= 6) break;
+  }
+  for (const tok of tokens) {
+    if (found.length >= 7) break;
+    if (tok.length >= 4 && !found.includes(tok)) found.push(tok);
+  }
+  return found.length > 0 ? found : tokens;
+}
+
 export async function retrieveRelevant(
   query: string,
   opts: { topK?: number; laborOnly?: boolean } = {}
 ): Promise<RagHit[]> {
-  const topK = opts.topK ?? 8;
-  const safeQ = query.replace(/["']/g, ' ').trim();
-  if (!safeQ) return [];
-  const tokens = safeQ.split(/\s+/).filter(Boolean);
-  const ftsQuery = tokens.map(t => `"${t}"`).join(' OR ');
+  const topK = opts.topK ?? 10;
+  const ftsQuery = buildFtsQuery(query);
+  if (!ftsQuery) return [];
 
   let sectionHits: any[] = [];
   let judgmentHits: any[] = [];
+  let regulationHits: any[] = [];
+  let templateHits: any[] = [];
 
-  // ============ FTS5 attempt ============
+  // ============ FTS5 across 4 sources ============
   try {
-    const sqlSections = opts.laborOnly
-      ? Prisma.sql`
-          SELECT s.section_id as chunk_id, 'law_section' as source_type, s.section_id as source_id,
-                 s.law_id, s.section_id, NULL as judgment_id, s.section_text as chunk_text,
-                 l.law_name_th, s.article_key, s.section_number
-          FROM law_sections_fts
-          JOIN law_sections s ON s.section_id = law_sections_fts.rowid
-          JOIN laws l ON l.law_id = s.law_id
-          WHERE law_sections_fts MATCH ${ftsQuery}
-            AND (s.is_labor_related = 1 OR l.is_labor_law = 1)
-          ORDER BY rank
-          LIMIT ${topK}
-        `
-      : Prisma.sql`
-          SELECT s.section_id as chunk_id, 'law_section' as source_type, s.section_id as source_id,
-                 s.law_id, s.section_id, NULL as judgment_id, s.section_text as chunk_text,
-                 l.law_name_th, s.article_key, s.section_number
-          FROM law_sections_fts
-          JOIN law_sections s ON s.section_id = law_sections_fts.rowid
-          JOIN laws l ON l.law_id = s.law_id
-          WHERE law_sections_fts MATCH ${ftsQuery}
-          ORDER BY rank
-          LIMIT ${topK}
-        `;
-    sectionHits = await db.$queryRaw<any[]>(sqlSections);
-  } catch (e) {
-    console.error('RAG section FTS error:', e);
-  }
+    sectionHits = await db.$queryRaw<any[]>(Prisma.sql`
+      SELECT s.section_id as chunk_id, 'law_section' as source_type, s.section_id as source_id,
+             s.law_id, s.section_id, NULL as judgment_id, NULL as regulation_id, NULL as template_id,
+             s.section_text as chunk_text,
+             l.title as law_title, l.law_code, s.section_number, s.section_number_thai,
+             NULL as deka_no, NULL as case_year, NULL as case_type, NULL as judgment_topic,
+             NULL as regulation_title, NULL as regulation_code,
+             NULL as template_title, NULL as template_code, NULL as template_category,
+             l.category
+      FROM law_sections_fts
+      JOIN law_sections s ON s.section_id = law_sections_fts.rowid
+      JOIN laws l ON l.law_id = s.law_id
+      WHERE law_sections_fts MATCH ${ftsQuery}
+        ${opts.laborOnly ? Prisma.sql`AND (s.is_labor_related = 1 OR l.category = 'labor')` : Prisma.empty}
+      ORDER BY rank
+      LIMIT ${topK}
+    `);
+  } catch (e) { console.error('RAG section FTS:', e); }
 
   try {
     judgmentHits = await db.$queryRaw<any[]>(Prisma.sql`
       SELECT j.judgment_id as chunk_id, 'judgment' as source_type, j.judgment_id as source_id,
-             NULL as law_id, NULL as section_id, j.judgment_id,
-             (COALESCE(j.fact,'') || ' ' || COALESCE(j.decision,'')) as chunk_text,
-             j.case_number, j.case_year, j.category, j.title
-      FROM case_judgments_fts
-      JOIN case_judgments j ON j.judgment_id = case_judgments_fts.rowid
-      WHERE case_judgments_fts MATCH ${ftsQuery}
-        ${opts.laborOnly ? Prisma.sql`AND j.category = 'labor'` : Prisma.empty}
+             NULL as law_id, NULL as section_id, j.judgment_id, NULL as regulation_id, NULL as template_id,
+             (COALESCE(j.fact,'') || ' ' || COALESCE(j.issue,'') || ' ' || COALESCE(j.ruling,'')) as chunk_text,
+             NULL as law_title, NULL as law_code, NULL as section_number, NULL as section_number_thai,
+             j.deka_no, j.year as case_year, j.case_type, j.topic as judgment_topic,
+             NULL as regulation_title, NULL as regulation_code,
+             NULL as template_title, NULL as template_code, NULL as template_category,
+             NULL as category
+      FROM judgments_fts
+      JOIN judgments j ON j.judgment_id = judgments_fts.rowid
+      WHERE judgments_fts MATCH ${ftsQuery}
+        ${opts.laborOnly ? Prisma.sql`AND j.case_type = 'แรงงาน'` : Prisma.empty}
       ORDER BY rank
       LIMIT ${Math.max(3, Math.floor(topK / 2))}
     `);
-  } catch (e) {
-    console.error('RAG judgment FTS error:', e);
-  }
+  } catch (e) { console.error('RAG judgment FTS:', e); }
+
+  try {
+    regulationHits = await db.$queryRaw<any[]>(Prisma.sql`
+      SELECT r.regulation_id as chunk_id, 'regulation' as source_type, r.regulation_id as source_id,
+             NULL as law_id, NULL as section_id, NULL as judgment_id, r.regulation_id, NULL as template_id,
+             r.full_text as chunk_text,
+             NULL as law_title, NULL as law_code, NULL as section_number, NULL as section_number_thai,
+             NULL as deka_no, NULL as case_year, NULL as case_type, NULL as judgment_topic,
+             r.title as regulation_title, r.regulation_code,
+             NULL as template_title, NULL as template_code, NULL as template_category,
+             r.category
+      FROM regulations_fts
+      JOIN regulations r ON r.regulation_id = regulations_fts.rowid
+      WHERE regulations_fts MATCH ${ftsQuery}
+      ORDER BY rank
+      LIMIT ${Math.max(2, Math.floor(topK / 3))}
+    `);
+  } catch (e) { console.error('RAG regulation FTS:', e); }
+
+  try {
+    templateHits = await db.$queryRaw<any[]>(Prisma.sql`
+      SELECT t.template_id as chunk_id, 'contract_template' as source_type, t.template_id as source_id,
+             NULL as law_id, NULL as section_id, NULL as judgment_id, NULL as regulation_id, t.template_id,
+             t.full_text as chunk_text,
+             NULL as law_title, NULL as law_code, NULL as section_number, NULL as section_number_thai,
+             NULL as deka_no, NULL as case_year, NULL as case_type, NULL as judgment_topic,
+             NULL as regulation_title, NULL as regulation_code,
+             t.title as template_title, t.template_code, t.category as template_category,
+             NULL as category
+      FROM contract_templates_fts
+      JOIN contract_templates t ON t.template_id = contract_templates_fts.rowid
+      WHERE contract_templates_fts MATCH ${ftsQuery}
+      ORDER BY rank
+      LIMIT ${Math.max(2, Math.floor(topK / 3))}
+    `);
+  } catch (e) { console.error('RAG template FTS:', e); }
 
   // ============ LIKE fallback if FTS returned too few ============
   if (sectionHits.length < 3) {
-    // Try LIKE with each token (Thai doesn't have word boundaries, so try substrings)
-    // Use the most informative token (longest one) plus a few keyword extractions
-    const keywordCandidates = extractKeywords(query);
-    const orClauses = keywordCandidates.map(k => ({ sectionText: { contains: k } }));
+    const keywords = extractKeywords(query);
+    const orClauses = keywords.map(k => ({ sectionText: { contains: k } }));
     if (orClauses.length > 0) {
       try {
         const likeHits = await db.lawSection.findMany({
           where: {
             AND: [
               opts.laborOnly
-                ? { OR: [{ isLaborRelated: 1 }, { law: { isLaborLaw: 1 } }] }
+                ? { OR: [{ isLaborRelated: 1 }, { law: { category: 'labor' } }] }
                 : {},
-              { OR: orClauses },
+              { OR: orClauses as any },
             ],
           } as any,
           take: topK - sectionHits.length,
@@ -113,38 +179,27 @@ export async function retrieveRelevant(
         for (const r of likeHits) {
           if (existing.has(r.sectionId)) continue;
           sectionHits.push({
-            chunk_id: r.sectionId,
-            source_type: 'law_section',
-            source_id: r.sectionId,
-            law_id: r.lawId,
-            section_id: r.sectionId,
-            judgment_id: null,
+            chunk_id: r.sectionId, source_type: 'law_section', source_id: r.sectionId,
+            law_id: r.lawId, section_id: r.sectionId, judgment_id: null, regulation_id: null, template_id: null,
             chunk_text: r.sectionText,
-            law_name_th: r.law.lawNameTh,
-            article_key: r.articleKey,
-            section_number: r.sectionNumber,
+            law_title: r.law.title, law_code: r.law.lawCode,
+            section_number: r.sectionNumber, section_number_thai: r.sectionNumberThai,
+            category: r.law.category,
           });
         }
-      } catch (e) {
-        console.error('RAG LIKE fallback (sections) failed:', e);
-      }
+      } catch (e) { console.error('RAG LIKE fallback sections:', e); }
     }
   }
 
   if (judgmentHits.length < 2) {
-    const keywordCandidates = extractKeywords(query);
-    const orClauses = keywordCandidates.map(k => ({
-      OR: [
-        { fact: { contains: k } },
-        { decision: { contains: k } },
-      ],
-    }));
+    const keywords = extractKeywords(query);
+    const orClauses = keywords.map(k => ({ OR: [{ fact: { contains: k } }, { ruling: { contains: k } }] }));
     if (orClauses.length > 0) {
       try {
-        const likeHits = await db.caseJudgment.findMany({
+        const likeHits = await db.judgment.findMany({
           where: {
             AND: [
-              opts.laborOnly ? { category: 'labor' } : {},
+              opts.laborOnly ? { caseType: 'แรงงาน' } : {},
               { OR: orClauses as any },
             ],
           } as any,
@@ -154,27 +209,18 @@ export async function retrieveRelevant(
         for (const r of likeHits) {
           if (existing.has(r.judgmentId)) continue;
           judgmentHits.push({
-            chunk_id: r.judgmentId,
-            source_type: 'judgment',
-            source_id: r.judgmentId,
-            law_id: null,
-            section_id: null,
-            judgment_id: r.judgmentId,
-            chunk_text: `${r.fact || ''} ${r.decision || ''}`.trim(),
-            case_number: r.caseNumber,
-            case_year: r.caseYear,
-            category: r.category,
-            title: r.title,
+            chunk_id: r.judgmentId, source_type: 'judgment', source_id: r.judgmentId,
+            law_id: null, section_id: null, judgment_id: r.judgmentId, regulation_id: null, template_id: null,
+            chunk_text: `${r.fact || ''} ${r.issue || ''} ${r.ruling || ''}`.trim(),
+            deka_no: r.dekaNo, case_year: r.year, case_type: r.caseType, judgment_topic: r.topic,
           });
         }
-      } catch (e) {
-        console.error('RAG LIKE fallback (judgments) failed:', e);
-      }
+      } catch (e) { console.error('RAG LIKE fallback judgments:', e); }
     }
   }
 
-  // Combine and dedupe by chunk_id
-  const all = [...sectionHits, ...judgmentHits];
+  // ============ Combine + dedupe ============
+  const all = [...sectionHits, ...judgmentHits, ...regulationHits, ...templateHits];
   const seen = new Set<number>();
   const deduped: RagHit[] = [];
   for (const h of all) {
@@ -187,83 +233,55 @@ export async function retrieveRelevant(
       lawId: h.law_id,
       sectionId: h.section_id,
       judgmentId: h.judgment_id,
+      regulationId: h.regulation_id,
+      templateId: h.template_id,
       chunkText: h.chunk_text,
-      metadata: {},
-      lawNameTh: h.law_name_th,
-      articleKey: h.article_key,
+      lawTitle: h.law_title,
+      lawCode: h.law_code,
       sectionNumber: h.section_number,
-      caseNumber: h.case_number,
+      sectionNumberThai: h.section_number_thai,
+      dekaNo: h.deka_no,
       caseYear: h.case_year,
+      caseType: h.case_type,
+      judgmentTopic: h.judgment_topic,
+      regulationTitle: h.regulation_title,
+      regulationCode: h.regulation_code,
+      templateTitle: h.template_title,
+      templateCode: h.template_code,
+      templateCategory: h.template_category,
       category: h.category,
-      title: h.title,
     });
     if (deduped.length >= topK) break;
   }
   return deduped;
 }
 
-/**
- * Extract keywords from a Thai legal question.
- * Returns up to 5 candidate substrings to search for.
- */
-function extractKeywords(query: string): string[] {
-  const cleaned = query.replace(/[?"'()\[\]{}]/g, ' ').trim();
-  const tokens = cleaned.split(/\s+/).filter(t => t.length >= 3);
-
-  // Common Thai legal terms to look for as substrings
-  const legalTerms = [
-    'เลิกจ้าง', 'ค่าจ้าง', 'ค่าชดเชย', 'ค่าล่วงเวลา', 'บุริมสิทธิ์', 'ลูกจ้าง', 'นายจ้าง',
-    'สัญญาจ้าง', 'แรงงาน', 'วันหยุด', 'วันลา', 'เงินเดือน', 'โบนัส', 'สวัสดิการ',
-    'หยุดงาน', 'ปิดงาน', 'ผู้รับเหมา', 'ทดแทน', 'อุทธรณ์', 'ฎีกา', 'คำพิพากษา',
-    'อายุความ', 'ศาลแรงงาน', 'ประกันสังคม', 'เงินทดแทน', 'จ้างทำของ', 'จ้างแรงงาน',
-    'เจ็บป่วย', 'ทุพพลภาพ', 'คลอดบุตร', 'ลาป่วย', 'ลากิจ',
-  ];
-
-  const found: string[] = [];
-  // First: scan the whole query for known legal terms (best signal)
-  for (const term of legalTerms) {
-    if (query.includes(term) && !found.includes(term)) {
-      found.push(term);
-    }
-    if (found.length >= 5) break;
-  }
-
-  // Then: add whole tokens if we still have room
-  for (const tok of tokens) {
-    if (found.length >= 6) break;
-    if (tok.length >= 4 && !found.includes(tok)) {
-      found.push(tok);
-    }
-  }
-
-  return found.length > 0 ? found : (tokens.length > 0 ? tokens : [cleaned]);
-}
-
-/**
- * Build a context string for the LLM from retrieved chunks.
- * Includes section number, law name, and snippet.
- */
 export function buildContext(hits: RagHit[]): string {
   if (!hits.length) return '(ไม่พบข้อมูลที่เกี่ยวข้องในฐานข้อมูล)';
   const parts: string[] = [];
   for (let i = 0; i < hits.length; i++) {
     const h = hits[i];
+    let ref = '';
+    let type = '';
     if (h.sourceType === 'law_section') {
-      const ref = `${h.lawNameTh || ''} ${h.articleKey || ''}`.trim();
-      const text = h.chunkText.length > 800 ? h.chunkText.slice(0, 800) + '…' : h.chunkText;
-      parts.push(`[มาตรา ${i + 1}] ${ref}\n${text}`);
-    } else {
-      const ref = `คำพิพากษาฎีกา ${h.caseNumber} (${h.category})${h.title ? ' — ' + h.title : ''}`;
-      const text = h.chunkText.length > 800 ? h.chunkText.slice(0, 800) + '…' : h.chunkText;
-      parts.push(`[ฎีกา ${i + 1}] ${ref}\n${text}`);
+      ref = `${h.lawTitle || 'กฎหมาย'} ${h.sectionNumberThai || `มาตรา ${h.sectionNumber}` || ''}`;
+      type = 'มาตรากฎหมาย';
+    } else if (h.sourceType === 'judgment') {
+      ref = `ฎีกาที่ ${h.dekaNo} (${h.caseType || 'แรงงาน'})${h.judgmentTopic ? ' — ' + h.judgmentTopic : ''}`;
+      type = 'คำพิพากษาฎีกา';
+    } else if (h.sourceType === 'regulation') {
+      ref = `${h.regulationTitle || 'กฎกระทรวง/ประกาศ'} (${h.regulationCode})`;
+      type = 'กฎกระทรวง/ประกาศ';
+    } else if (h.sourceType === 'contract_template') {
+      ref = `${h.templateTitle || 'เทมเพลตสัญญา'} (${h.templateCode})`;
+      type = 'เทมเพลตสัญญา';
     }
+    const text = h.chunkText.length > 1000 ? h.chunkText.slice(0, 1000) + '…' : h.chunkText;
+    parts.push(`[${type} ${i + 1}] ${ref}\n${text}`);
   }
   return parts.join('\n\n---\n\n');
 }
 
-/**
- * Build citation list for the user-facing UI.
- */
 export function buildCitations(hits: RagHit[]) {
   return hits.map((h, i) => {
     if (h.sourceType === 'law_section') {
@@ -271,20 +289,40 @@ export function buildCitations(hits: RagHit[]) {
         index: i + 1,
         type: 'section' as const,
         id: h.sectionId!,
-        label: `${h.lawNameTh || 'กฎหมาย'} ${h.articleKey || ''}`.trim(),
-        ref: h.articleKey || '',
+        label: `${h.lawTitle || 'กฎหมาย'} ${h.sectionNumberThai || `มาตรา ${h.sectionNumber}` || ''}`.trim(),
+        ref: h.sectionNumberThai || h.sectionNumber || '',
         snippet: h.chunkText.slice(0, 180),
         url: `/?view=section&id=${h.sectionId}`,
       };
-    } else {
+    } else if (h.sourceType === 'judgment') {
       return {
         index: i + 1,
         type: 'judgment' as const,
         id: h.judgmentId!,
-        label: `ฎีกา ${h.caseNumber}${h.title ? ' — ' + h.title : ''}`,
-        ref: `${h.caseNumber}`,
+        label: `ฎีกา ${h.dekaNo}${h.judgmentTopic ? ' — ' + h.judgmentTopic : ''}`,
+        ref: h.dekaNo || '',
         snippet: h.chunkText.slice(0, 180),
         url: `/?view=judgment&id=${h.judgmentId}`,
+      };
+    } else if (h.sourceType === 'regulation') {
+      return {
+        index: i + 1,
+        type: 'regulation' as const,
+        id: h.regulationId!,
+        label: `${h.regulationTitle || 'กฎกระทรวง'} (${h.regulationCode})`,
+        ref: h.regulationCode || '',
+        snippet: h.chunkText.slice(0, 180),
+        url: `/?view=regulation&id=${h.regulationId}`,
+      };
+    } else {
+      return {
+        index: i + 1,
+        type: 'template' as const,
+        id: h.templateId!,
+        label: `${h.templateTitle} (${h.templateCode})`,
+        ref: h.templateCode || '',
+        snippet: h.chunkText.slice(0, 180),
+        url: `/?view=template&id=${h.templateId}`,
       };
     }
   });

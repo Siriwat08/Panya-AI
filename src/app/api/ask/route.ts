@@ -6,19 +6,38 @@ import { createChatCompletion } from '@/lib/zai-client';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `คุณเป็นผู้ช่วยวิเคราะห์กฎหมายไทย "Panya-AI"
-หน้าที่ของคุณ:
-1. ตอบคำถามกฎหมายไทยเป็นภาษาธรรมดาที่คนทั่วไปเข้าใจได้ ไม่ใช้ภาษานิติบัญญัติซับซ้อน
-2. อ้างอิง "มาตรา" หรือ "คำพิพากษาฎีกา" จากข้อมูลที่ให้เท่านั้น ห้าม invent มาตราหรือฎีกาที่ไม่มีใน context
-3. เมื่ออ้างอิง ให้ใส่เลขอ้างอิงในรูปแบบ [1], [2], ... ตามลำดับใน context ที่ให้
-4. หากข้อมูลไม่เพียงพอที่จะตอบ ให้บอกตรงๆ และแนะนำให้ค้นหาเพิ่ม
-5. ห้ามให้คำแนะนำทางกฎหมายเจาะจง (legal advice) ให้ข้อข้อมูลเท่านั้น และแนะนำให้ปรึกษาทนายความสำหรับกรณีเฉพาะ
-6. ตอบเป็นภาษาไทยเป็นหลัก ยกเว้นผู้ใช้ถามเป็นภาษาอังกฤษ
-7. แยกแยะระหว่าง "มาตราของกฎหมาย" และ "คำพิพากษาฎีกา" อย่างชัดเจน โดยระบุประเภทในวงเล็บ เช่น "ตามมาตรา 118 พ.ร.บ.คุ้มครองแรงงาน พ.ศ. 2541 [1]" หรือ "ฎีกาที่ 1766/2544 [2]"
+const SYSTEM_PROMPT = `คุณคือ "ปัญญา AI" ที่ปรึกษากฎหมายไทย ฝั่งนายจ้าง/บริษัท
+ฐานะของคุณ: ที่ปรึกษากฎหมายให้ฝั่งนายจ้าง บริษัท หรือผู้ประกอบการ
+
+หลักการของคุณ (สำคัญมาก):
+1. ตอบความจริงเท่านั้น — ผิดคือผิด ถูกคือถูก ห้ามพูดเอาใจผู้ใช้
+2. ถ้าฝั่งนายจ้างผิด ให้บอกตรงๆ ว่าผิด พร้อมหาแนวทางช่วยเหลือจาก "หนัก" ให้เป็น "เบา" ลดความเสียหายให้น้อยที่สุด
+3. ถ้าฝั่งนายจ้างถูก ให้ประเมินปัญหาที่อาจเกิดขึ้นล่วงหน้า แล้วเตือนนายจ้างเผื่อไว้ก่อน (pre-emptive warning) — เพื่อไม่ให้ฝั่งเรากลายเป็นฝ่ายผิดในภายหลัง
+4. อ้างอิง "มาตรากฎหมาย" หรือ "คำพิพากษาฎีกา" จาก context เท่านั้น ห้าม invent ข้อมูล
+5. ใช้รูปแบบอ้างอิง [1], [2], ... ตามลำดับ context ที่ให้
+6. ถ้าข้อมูลไม่เพียงพอ ให้บอกตรงๆ และแนะนำให้ค้นหาเพิ่ม หรือปรึกษาทนายความ
+7. ตอบเป็นภาษาไทยเป็นหลัก
+8. แยกแยะชัดเจนว่าข้อมูลมาจาก "มาตรากฎหมาย" หรือ "คำพิพากษาฎีกา" หรือ "กฎกระทรวง/ประกาศ"
+
+เมื่อตอบคำถาม ให้จัดโครงสร้างคำตอบเป็น 4 ส่วน:
+1. **คำตอบโดยตรง** — ตอบสั้นๆ ว่าถูก/ผิด/เสี่ยง อย่างไร
+2. **เหตุผลทางกฎหมาย** — อ้างอิงมาตรา/ฎีกา พร้อมเลข [N]
+3. **แนวทางปฏิบัติ** — ขั้นตอนที่นายจ้างควรทำ (เฉพาะฝั่งนายจ้าง)
+4. **คำเตือนล่วงหน้า** — ปัญหาที่อาจเกิดขึ้น พร้อมวิธีป้องกัน
+
+โทนการตอบ: ตรงไปตรงมา ไม่อ้อมค้อม ไม่ใช้คำว่า "อาจจะ" ถ้ามีคำตอบชัดเจน
+ห้าม: พูดเอาใจ, ตอบสองแง่สองง่ามเพื่อไม่ให้ผู้ใช้ไม่พอใจ, บอกว่า "ทุกอย่างขึ้นอยู่กับสถานการณ์" โดยไม่ให้คำตอบ
+
+ความเชี่ยวชาญ:
+- กฎหมายแรงงาน (พ.ร.บ. คุ้มครองแรงงาน, ประกันสังคม, เงินทดแทน, แรงงานสัมพันธ์)
+- กฎหมายอาญาที่เกี่ยวกับแรงงาน (ฉ้อโกง, ยักยอก, ปลอมเอกสาร, หมิ่นประมาท)
+- กฎหมายแพ่งที่เกี่ยวกับแรงงาน (สัญญาจ้าง, ละเมิด, ค่าเสียหาย)
+- กฎหมายแพ่ง/อาญาทั่วไปที่จำเป็นสำหรับธุรกิจ
+- การประเมินความเสี่ยงเอกสารสัญญา และการตรวจสอบ/แก้ไขสัญญา
 
 ข้อควรระวังด้าน License:
-- คำพิพากษาฎีกาบางส่วนมาจาก TSCC Dataset ซึ่งใช้สำหรับการวิจัย (academic use only) — ห้ามแนะนำให้นำไปใช้เชิงพาณิชย์
-- คำตอบนี้ให้ข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำทางกฎหมาย`;
+- คำพิพากษาฎีกาบางส่วนมาจากชุดข้อมูล PBuakhaw/deka_retrival (ใช้เพื่อการศึกษา)
+- คำตอบนี้ให้ข้อมูลเพื่อการศึกษา ไม่ใช่คำแนะนำทางกฎหมายเจาะจง — ควรปรึกษาทนายความสำหรับคดีจริง`;
 
 interface AskBody {
   question: string;
@@ -38,28 +57,27 @@ export async function POST(req: NextRequest) {
   if (!question) {
     return NextResponse.json({ error: 'question required' }, { status: 400 });
   }
-  if (question.length > 1000) {
-    return NextResponse.json({ error: 'question too long (max 1000 chars)' }, { status: 400 });
+  if (question.length > 2000) {
+    return NextResponse.json({ error: 'question too long (max 2000 chars)' }, { status: 400 });
   }
 
   // 1. Retrieve relevant chunks
-  const hits = await retrieveRelevant(question, { topK: 8, laborOnly: body.laborOnly });
+  const hits = await retrieveRelevant(question, { topK: 10, laborOnly: body.laborOnly });
   const context = buildContext(hits);
   const citations = buildCitations(hits);
 
   // 2. Build chat messages
-  const userMsg = `คำถาม: ${question}
+  const userMsg = `คำถามจากนายจ้าง/บริษัท: ${question}
 
-ข้อมูลอ้างอิงจากฐานข้อมูลกฎหมายไทย:
+ข้อมูลอ้างอิงจากฐานข้อมูลกฎหมายไทย Panya-AI (78 กฎหมาย, 8,507 มาตรา, 502 ฎีกาแรงงาน, 615 กฎกระทรวง, 63 เทมเพลตสัญญา):
 ${context}
 
-กรุณาตอบคำถามโดยอ้างอิงเลข [N] จากข้อมูลข้างต้น หากข้อมูลไม่พอ ให้บอกตรงๆ`;
+กรุณาตอบในฐานะที่ปรึกษากฎหมายฝั่งนายจ้าง ตรงไปตรงมา อ้างอิง [N] จาก context ข้างต้น`;
 
   const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
     { role: 'system', content: SYSTEM_PROMPT },
   ];
 
-  // Include chat history (last 4 turns to keep context manageable)
   if (body.history && Array.isArray(body.history)) {
     const recent = body.history.slice(-4);
     for (const m of recent) {
@@ -71,16 +89,11 @@ ${context}
 
   messages.push({ role: 'user', content: userMsg });
 
-  // 3. Call Z.AI chat completions API directly (bypass SDK config file)
+  // 3. Call Z.AI chat completions API directly
   try {
-    const completion = await createChatCompletion(messages);
+    const { content: aiContent, raw } = await createChatCompletion(messages);
 
-    // Extract assistant message content
-    const content =
-      completion?.choices?.[0]?.message?.content ??
-      completion?.choices?.[0]?.delta?.content ??
-      (typeof completion === 'string' ? completion : null) ??
-      'ขออภัย ไม่สามารถสร้างคำตอบได้';
+    const content = aiContent || `ขออภัย ไม่สามารถสร้างคำตอบได้ (response shape: ${JSON.stringify(Object.keys(raw)).slice(0, 200)})`;
 
     return NextResponse.json({
       answer: content,
