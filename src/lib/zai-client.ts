@@ -1,6 +1,5 @@
 /**
  * Lightweight Z.AI API client (bypasses SDK to avoid .z-ai-config file requirement).
- * Calls API directly with fetch using Z_AI_API_KEY env var.
  */
 
 const ZAI_BASE_URL = 'https://api.z.ai/api/paas/v4';
@@ -10,9 +9,6 @@ export interface ChatMessage {
   content: string;
 }
 
-/**
- * Create a chat completion via Z.AI API.
- */
 export async function createChatCompletion(
   messages: ChatMessage[],
   options: { stream?: boolean; model?: string } = {}
@@ -22,12 +18,18 @@ export async function createChatCompletion(
   }
 
   const url = `${ZAI_BASE_URL}/chat/completions`;
+  // Default model — glm-4-flash (free tier)
+  // Can override via Z_AI_MODEL env var
+  const model = options.model || process.env.Z_AI_MODEL || 'glm-4-flash';
+
   const body: any = {
+    model,
     messages,
     stream: false,
-    thinking: { type: 'disabled' },
     ...options,
   };
+
+  console.log('[zai-client] Calling Z.AI with model:', model, 'messages:', messages.length);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -46,13 +48,11 @@ export async function createChatCompletion(
 
   const raw: any = await response.json();
 
-  // If Z.AI returned an error in body
   if (raw?.error) {
     const errMsg = typeof raw.error === 'string' ? raw.error : (raw.error.message || JSON.stringify(raw.error));
     throw new Error(`Z.AI API body error: ${errMsg.slice(0, 300)}`);
   }
 
-  // Try multiple response shapes
   let content: string | null = null;
   try {
     content =
@@ -65,7 +65,7 @@ export async function createChatCompletion(
   } catch (e) {}
 
   if (!content) {
-    console.error('[zai-client] Unexpected response shape:', JSON.stringify(raw).slice(0, 500));
+    console.error('[zai-client] Unexpected response:', JSON.stringify(raw).slice(0, 500));
   }
 
   return { content: content || '', raw };
