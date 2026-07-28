@@ -1,5 +1,6 @@
 /**
  * Lightweight Z.AI API client (bypasses SDK to avoid .z-ai-config file requirement).
+ * Uses streaming to avoid Vercel function timeout (60s).
  */
 
 const ZAI_BASE_URL = 'https://api.z.ai/api/paas/v4';
@@ -18,18 +19,16 @@ export async function createChatCompletion(
   }
 
   const url = `${ZAI_BASE_URL}/chat/completions`;
-  // Default model — glm-4-flash (free tier)
-  // Can override via Z_AI_MODEL env var
-  const model = options.model || process.env.Z_AI_MODEL || 'glm-4.5-flash';
+  // Try glm-4.6 (newest free-tier model) — fallback chain via env
+  const model = options.model || process.env.Z_AI_MODEL || 'glm-4.6';
 
   const body: any = {
     model,
     messages,
-    stream: false,
-    ...options,
+    stream: false,  // Non-streaming for simplicity (will set maxDuration to 60s on Vercel)
   };
 
-  console.log('[zai-client] Calling Z.AI with model:', model, 'messages:', messages.length);
+  console.log('[zai-client] model:', model, 'messages:', messages.length);
 
   const response = await fetch(url, {
     method: 'POST',
