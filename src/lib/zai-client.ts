@@ -20,7 +20,7 @@ export async function createChatCompletion(
   const url = `${ZAI_BASE_URL}/chat/completions`;
   // Default model — glm-4-flash (free tier)
   // Can override via Z_AI_MODEL env var
-  const model = options.model || process.env.Z_AI_MODEL || 'glm-4-flash';
+  const model = options.model || process.env.Z_AI_MODEL || 'glm-4.5-flash';
 
   const body: any = {
     model,
