@@ -125,6 +125,15 @@ export function Header() {
 }
 
 export function Footer() {
+  const [footerStats, setFooterStats] = useState({totalLaws: 78, totalSections: 8507, totalJudgments: 514, totalRegulations: 615, totalTemplates: 63});
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then(d => setFooterStats(d))
+      .catch(() => {});
+  }, []);
+
   return (
     <footer className="mt-auto border-t border-border/60 bg-card-soft/50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
@@ -144,9 +153,9 @@ export function Footer() {
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-gold mb-3">ข้อมูลในระบบ</h4>
             <ul className="text-xs text-muted-foreground space-y-1.5">
-              <li>กฎหมาย 14 ฉบับ · 4,441 มาตรา</li>
-              <li>คำพิพากษาฎีกา 1,258 เรื่อง</li>
-              <li>มาตราแรงงานที่ tagged 797 มาตรา</li>
+              <li>กฎหมาย {footerStats.totalLaws} ฉบับ · {footerStats.totalSections.toLocaleString("th-TH")} มาตรา</li>
+              <li>คำพิพากษาฎีกา {footerStats.totalJudgments} เรื่อง</li>
+              <li>อนุบัญญัติ {footerStats.totalRegulations} ฉบับ · เทมเพลต {footerStats.totalTemplates} ฉบับ</li>
               <li>AI RAG พร้อมอ้างอิงมาตรา/ฎีกา</li>
             </ul>
           </div>

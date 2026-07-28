@@ -106,7 +106,7 @@ export function SearchView({ initialQ, initialType }: { initialQ?: string; initi
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
       <h1 className="text-2xl sm:text-3xl font-bold mb-2">ค้นหาในฐานข้อมูลกฎหมาย</h1>
       <p className="text-sm text-muted-foreground mb-6">
-        ค้นหาในมาตรากฎหมายและคำพิพากษาศาลฎีกา 4,441 มาตรา + 1,258 ฎีกา
+        ค้นหาในมาตรากฎหมาย คำพิพากษาฎีกา อนุบัญญัติ และเทมเพลตสัญญา
       </p>
 
       {/* Search form */}

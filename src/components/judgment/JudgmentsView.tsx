@@ -63,8 +63,8 @@ export function JudgmentsView() {
       {/* Category filter */}
       <div className="flex flex-wrap gap-2 mb-6">
         {([
-          { v: 'labor', label: 'คดีแรงงาน (51)' },
-          { v: 'criminal', label: 'คดีอาญา (1,207 · TSCC)' },
+          { v: 'labor', label: 'คดีแรงงาน' },
+          { v: 'criminal', label: 'คดีอาญา (TSCC)' },
           { v: 'all', label: 'ทั้งหมด' },
         ] as const).map(opt => (
           <button
