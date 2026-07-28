@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/sections?id=123 — section detail + related judgments
+// GET /api/sections?id=123 — section detail + related judgments (via laws_cited in judgments)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
@@ -17,43 +17,84 @@ export async function GET(req: NextRequest) {
   });
   if (!section) return NextResponse.json({ error: 'Section not found' }, { status: 404 });
 
-  // Find related judgments via case_law_links
-  const links = await db.caseLawLink.findMany({
-    where: { sectionId },
-    include: {
-      judgment: {
-        include: {
-          source: true,
-        },
-      },
-    },
-    take: 50,
-  });
+  // Find related judgments via cross_references table
+  let relatedJudgments: any[] = []
+  try {
+    const refs = await db.crossReference.findMany({
+      where: { sourceType: 'law_section', sourceId: sectionId, targetType: 'judgment' },
+      take: 30,
+    })
+    const judgmentIds = refs.map(r => r.targetId).filter(Boolean) as number[]
+    if (judgmentIds.length > 0) {
+      const judgments = await db.judgment.findMany({
+        where: { judgmentId: { in: judgmentIds } },
+        include: { source: true },
+        take: 30,
+      })
+      relatedJudgments = judgments.map(j => ({
+        judgmentId: j.judgmentId,
+        caseNumber: j.dekaNo,
+        caseYear: j.year,
+        year: j.year,
+        category: j.caseType,
+        title: j.topic,
+        fact: j.fact,
+        decision: j.ruling,
+        sourceUrl: j.sourceUrl,
+        sourceName: j.source?.sourceName ?? null,
+        licenseNote: j.note,
+      }))
+    }
+  } catch (e) {
+    // cross_references table might be empty — that's OK
+  }
 
-  const relatedJudgments = links
-    .filter(l => l.judgment)
-    .map(l => ({
-      judgmentId: l.judgment!.judgmentId,
-      caseNumber: l.judgment!.caseNumber,
-      caseYear: l.judgment!.caseYear,
-      category: l.judgment!.category,
-      title: l.judgment!.title,
-      fact: l.judgment!.fact,
-      decision: l.judgment!.decision,
-      sourceUrl: l.judgment!.sourceUrl,
-      sourceName: l.judgment!.source?.sourceName ?? null,
-      licenseNote: l.judgment!.licenseNote,
-    }));
+  // Also try: find judgments that cite this law's section number in laws_cited
+  if (relatedJudgments.length === 0 && section.sectionNumber) {
+    try {
+      const lawTitle = section.law.title || ''
+      const sectionRef = section.sectionNumber
+      // Search judgments where laws_cited contains this law + section
+      const judgments = await db.judgment.findMany({
+        where: {
+          AND: [
+            { lawsCited: { contains: lawTitle.slice(0, 20) } },
+            { lawsCited: { contains: `มาตรา ${sectionRef}` } },
+          ],
+        },
+        include: { source: true },
+        take: 10,
+      })
+      relatedJudgments = judgments.map(j => ({
+        judgmentId: j.judgmentId,
+        caseNumber: j.dekaNo,
+        caseYear: j.year,
+        year: j.year,
+        category: j.caseType,
+        title: j.topic,
+        fact: j.fact,
+        decision: j.ruling,
+        sourceUrl: j.sourceUrl,
+        sourceName: j.source?.sourceName ?? null,
+        licenseNote: j.note,
+      }))
+    } catch (e) {
+      // ignore
+    }
+  }
 
   return NextResponse.json({
     sectionId: section.sectionId,
     lawId: section.lawId,
-    lawNameTh: section.law.lawNameTh,
-    articleKey: section.articleKey,
+    lawNameTh: section.law.title,  // legacy alias
+    title: section.law.title,
+    lawCode: section.law.lawCode,
+    articleKey: section.sectionNumberThai || `มาตรา ${section.sectionNumber}`,  // legacy alias
     sectionNumber: section.sectionNumber,
+    sectionNumberThai: section.sectionNumberThai,
     sectionText: section.sectionText,
     isLaborRelated: section.isLaborRelated,
-    isCancelled: section.isCancelled,
+    isCancelled: 0,
     chapter: section.chapter,
     notes: section.notes,
     relatedJudgments,

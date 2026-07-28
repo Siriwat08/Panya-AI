@@ -3,146 +3,124 @@ import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/judgments              — list (filter by category, page)
+// GET /api/judgments              — list (filter by case_type, page)
 // GET /api/judgments?id=123       — judgment detail + related sections
-// GET /api/judgments?law_id=1&section=119 — filter by law section
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
-  const category = searchParams.get('category'); // 'labor' | 'criminal'
-  const lawId = searchParams.get('law_id');
-  const sectionId = searchParams.get('section_id');
+  const category = searchParams.get('category'); // 'แรงงาน' | 'แพ่ง' | etc.
   const page = parseInt(searchParams.get('page') || '1', 10);
-  const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '50', 10), 200);
+  const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '30', 10), 100);
   const skip = (page - 1) * pageSize;
 
   if (id) {
     const judgmentId = parseInt(id, 10);
     if (isNaN(judgmentId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
-    const judgment = await db.caseJudgment.findUnique({
+    const judgment = await db.judgment.findUnique({
       where: { judgmentId },
       include: { source: true },
     });
     if (!judgment) return NextResponse.json({ error: 'Judgment not found' }, { status: 404 });
 
-    // Related sections via case_law_links
-    const links = await db.caseLawLink.findMany({
-      where: { judgmentId },
-      include: {
-        section: {
+    // Related sections via cross_references table
+    let relatedSections: any[] = []
+    try {
+      const refs = await db.crossReference.findMany({
+        where: { sourceType: 'judgment', sourceId: judgmentId, targetType: 'law_section' },
+        take: 30,
+      })
+      const sectionIds = refs.map(r => r.targetId).filter(Boolean) as number[]
+      if (sectionIds.length > 0) {
+        const sections = await db.lawSection.findMany({
+          where: { sectionId: { in: sectionIds } },
           include: { law: true },
-        },
-      },
-      take: 50,
-    });
-    const relatedSections = links
-      .filter(l => l.section)
-      .map(l => ({
-        sectionId: l.section!.sectionId,
-        lawId: l.section!.lawId,
-        lawNameTh: l.section!.law.lawNameTh,
-        articleKey: l.section!.articleKey,
-        sectionNumber: l.section!.sectionNumber,
-        sectionText: l.section!.sectionText,
-        isLaborRelated: l.section!.isLaborRelated,
-        isCancelled: l.section!.isCancelled,
-        chapter: l.section!.chapter,
-        notes: l.section!.notes,
-      }));
+          take: 30,
+        })
+        relatedSections = sections.map(s => ({
+          sectionId: s.sectionId,
+          lawId: s.lawId,
+          lawNameTh: s.law.title,
+          articleKey: s.sectionNumberThai || `มาตรา ${s.sectionNumber}`,
+          sectionNumber: s.sectionNumber,
+          sectionText: s.sectionText,
+          isLaborRelated: s.isLaborRelated,
+          isCancelled: 0,
+          chapter: s.chapter,
+          notes: s.notes,
+        }))
+      }
+    } catch (e) {
+      // cross_references might be empty
+    }
 
     return NextResponse.json({
       judgmentId: judgment.judgmentId,
-      caseNumber: judgment.caseNumber,
-      caseYear: judgment.caseYear,
-      court: judgment.court,
-      category: judgment.category,
-      categoryCode: judgment.categoryCode,
-      issueNumber: judgment.issueNumber,
-      lawReferences: judgment.lawReferences,
+      caseNumber: judgment.dekaNo,  // legacy alias
+      dekaNo: judgment.dekaNo,
+      caseYear: judgment.year,  // legacy alias
+      year: judgment.year,
+      court: 'ศาลฎีกา',
+      category: judgment.caseType,
+      caseType: judgment.caseType,
+      categoryCode: null,
+      issueNumber: null,
+      lawReferences: judgment.lawsCited,  // legacy alias
+      lawsCited: judgment.lawsCited,
       fact: judgment.fact,
-      decision: judgment.decision,
-      title: judgment.title,
+      decision: judgment.ruling,  // legacy alias
+      ruling: judgment.ruling,
+      verdict: judgment.verdict,
+      title: judgment.topic,
+      topic: judgment.topic,
       sourceId: judgment.sourceId,
       sourceUrl: judgment.sourceUrl,
       sourceName: judgment.source?.sourceName ?? null,
       sourceDescription: judgment.source?.description ?? null,
-      licenseNote: judgment.licenseNote,
+      licenseNote: judgment.note,
+      note: judgment.note,
+      fullText: judgment.fullText,
       relatedSections,
     });
   }
 
   // List mode
-  const where: { category?: string } = {};
-  if (category) where.category = category;
-
-  let judgments;
-  let total;
-
-  if (sectionId) {
-    // Filter by section link
-    const sid = parseInt(sectionId, 10);
-    const links = await db.caseLawLink.findMany({
-      where: { sectionId: sid },
-      select: { judgmentId: true },
-    });
-    const jids = links.map(l => l.judgmentId).filter(Boolean) as number[];
-    [judgments, total] = await Promise.all([
-      db.caseJudgment.findMany({
-        where: { judgmentId: { in: jids }, ...(category ? { category } : {}) },
-        include: { source: true },
-        skip,
-        take: pageSize,
-        orderBy: { judgmentId: 'asc' },
-      }),
-      db.caseJudgment.count({
-        where: { judgmentId: { in: jids }, ...(category ? { category } : {}) },
-      }),
-    ]);
-  } else if (lawId) {
-    // Filter by law via links
-    const lid = parseInt(lawId, 10);
-    const links = await db.caseLawLink.findMany({
-      where: { lawId: lid },
-      select: { judgmentId: true },
-    });
-    const jids = Array.from(new Set(links.map(l => l.judgmentId).filter(Boolean))) as number[];
-    [judgments, total] = await Promise.all([
-      db.caseJudgment.findMany({
-        where: { judgmentId: { in: jids }, ...(category ? { category } : {}) },
-        include: { source: true },
-        skip,
-        take: pageSize,
-        orderBy: { judgmentId: 'asc' },
-      }),
-      db.caseJudgment.count({
-        where: { judgmentId: { in: jids }, ...(category ? { category } : {}) },
-      }),
-    ]);
-  } else {
-    [judgments, total] = await Promise.all([
-      db.caseJudgment.findMany({
-        where,
-        include: { source: true },
-        skip,
-        take: pageSize,
-        orderBy: { judgmentId: 'asc' },
-      }),
-      db.caseJudgment.count({ where }),
-    ]);
+  const where: { caseType?: string } = {};
+  if (category) {
+    // Support both Thai and English category names
+    if (category === 'labor') where.caseType = 'แรงงาน';
+    else if (category === 'criminal') where.caseType = 'อาญา';
+    else where.caseType = category;
   }
+
+  const [judgments, total] = await Promise.all([
+    db.judgment.findMany({
+      where,
+      include: { source: true },
+      skip,
+      take: pageSize,
+      orderBy: { judgmentId: 'asc' },
+    }),
+    db.judgment.count({ where }),
+  ]);
 
   const result = judgments.map(j => ({
     judgmentId: j.judgmentId,
-    caseNumber: j.caseNumber,
-    caseYear: j.caseYear,
-    category: j.category,
-    title: j.title,
+    caseNumber: j.dekaNo,  // legacy alias
+    dekaNo: j.dekaNo,
+    caseYear: j.year,  // legacy alias
+    year: j.year,
+    category: j.caseType,
+    caseType: j.caseType,
+    title: j.topic,
+    topic: j.topic,
     fact: j.fact,
-    decision: j.decision,
+    decision: j.ruling,  // legacy alias
+    ruling: j.ruling,
     sourceUrl: j.sourceUrl,
     sourceName: j.source?.sourceName ?? null,
-    licenseNote: j.licenseNote,
+    licenseNote: j.note,
+    note: j.note,
   }));
 
   return NextResponse.json({

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 // GET /api/laws             — list all laws (with section count)
 // GET /api/laws?id=123      — single law detail (with sections)
 // GET /api/laws?id=123&q=xxx — single law + filter sections by keyword
-// GET /api/laws?labor=1     — only labor laws
+// GET /api/laws?labor=1     — only labor laws (category=labor)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
             ? {
                 OR: [
                   { sectionText: { contains: q } },
-                  { articleKey: { contains: q } },
                   { sectionNumber: { contains: q } },
+                  { sectionNumberThai: { contains: q } },
                 ],
               }
             : undefined,
@@ -35,11 +35,10 @@ export async function GET(req: NextRequest) {
           select: {
             sectionId: true,
             lawId: true,
-            articleKey: true,
             sectionNumber: true,
+            sectionNumberThai: true,
             sectionText: true,
             isLaborRelated: true,
-            isCancelled: true,
             chapter: true,
             notes: true,
           },
@@ -49,12 +48,18 @@ export async function GET(req: NextRequest) {
     if (!law) {
       return NextResponse.json({ error: 'Law not found' }, { status: 404 });
     }
-    return NextResponse.json(law);
+    // Map to legacy field names for frontend compatibility
+    return NextResponse.json({
+      ...law,
+      lawNameTh: law.title,  // legacy alias
+      lawNameEn: null,
+      isLaborLaw: law.category === 'labor' ? 1 : 0,  // legacy alias
+    });
   }
 
   // List all laws
   const laws = await db.law.findMany({
-    where: laborOnly ? { isLaborLaw: 1 } : undefined,
+    where: laborOnly ? { category: 'labor' } : undefined,
     orderBy: { lawId: 'asc' },
     include: {
       _count: { select: { sections: true } },
@@ -66,11 +71,13 @@ export async function GET(req: NextRequest) {
   });
   const result = laws.map(l => ({
     lawId: l.lawId,
-    lawNameTh: l.lawNameTh,
-    lawNameEn: l.lawNameEn,
+    lawCode: l.lawCode,
+    title: l.title,
+    lawNameTh: l.title,  // legacy alias for frontend
+    lawNameEn: null,
     year: l.year,
     category: l.category,
-    isLaborLaw: l.isLaborLaw,
+    isLaborLaw: l.category === 'labor' ? 1 : 0,  // legacy alias
     status: l.status,
     sourceUrl: l.sourceUrl,
     sectionCount: l._count.sections,
