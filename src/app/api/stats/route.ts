@@ -14,6 +14,8 @@ export async function GET(_req: NextRequest) {
     totalCrossRefs,
     totalLaborSections,
     laborLawCount,
+    totalLaborJudgments,
+    totalCriminalJudgments,
   ] = await Promise.all([
     db.law.count(),
     db.lawSection.count(),
@@ -24,6 +26,8 @@ export async function GET(_req: NextRequest) {
     db.crossReference.count(),
     db.lawSection.count({ where: { isLaborRelated: 1 } }),
     db.law.count({ where: { category: 'labor' } }),
+    db.judgment.count({ where: { caseType: 'แรงงาน' } }),
+    db.judgment.count({ where: { caseType: 'อาญา' } }),
   ]);
 
   // Laws by category with section counts
@@ -63,6 +67,8 @@ export async function GET(_req: NextRequest) {
     totalLaws,
     totalSections,
     totalJudgments,
+    totalLaborJudgments,
+    totalCriminalJudgments,
     totalRegulations,
     totalTemplates,
     totalRagChunks,

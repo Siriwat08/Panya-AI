@@ -101,7 +101,7 @@ export function JudgmentsView() {
           )}
 
           <div className="text-sm text-muted-foreground mb-3">
-            พบทั้งหมด <span className="text-gold font-semibold">{data.total.toLocaleString('th-TH')}</span> เรื่อง
+            พบทั้งหมด <span className="text-gold font-semibold">{(data?.total || 0).toLocaleString('th-TH')}</span> เรื่อง
             · หน้า {data.page}/{data.totalPages}
           </div>
 

@@ -90,7 +90,7 @@ function StatsStrip({ stats }: { stats: DashboardStats }) {
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-gradient-gold tabular-nums">
-              {it.value.toLocaleString('th-TH')}
+              {(it.value || 0).toLocaleString('th-TH')}
             </div>
             <div className="text-xs sm:text-sm font-medium text-foreground mt-0.5">{it.label}</div>
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{it.labelEn}</div>
