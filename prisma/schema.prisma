@@ -2,6 +2,7 @@
 // Matches the SQLite database built by /home/z/my-project/scripts/rebuild_legal_db.py
 
 generator client {
+  previewFeatures = ["driverAdapters"]
   provider = "prisma-client-js"
 }
 
