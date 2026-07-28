@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { retrieveRelevant, buildContext, buildCitations } from '@/lib/rag';
 import ZAI from 'z-ai-web-dev-sdk';
+import { ensureZaiConfig } from '@/lib/zai-config';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -73,6 +74,7 @@ ${context}
 
   // 3. Call ZAI chat completions
   try {
+    ensureZaiConfig();
     const zai = await ZAI.create();
     const completion = await zai.chat.completions.create({
       messages,
