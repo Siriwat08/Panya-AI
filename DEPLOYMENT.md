@@ -154,7 +154,7 @@ turso db show panya-ai --url
 
 # Create auth token (ใช้ใน TURSO_AUTH_TOKEN)
 turso db tokens create panya-ai
-# → eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9...
+# → <YOUR_TURSO_TOKEN>
 
 # เก็บค่าทั้งสองไว้ — จะใช้ใน Step 5
 ```
@@ -321,7 +321,7 @@ bun run dev
 | Name | Value | Environments |
 |------|-------|--------------|
 | `DATABASE_URL` | `libsql://panya-ai-<your-account>.turso.io` | Production, Preview, Development |
-| `TURSO_AUTH_TOKEN` | `eyJhbGciOi...` (from Step 2.3) | Production, Preview, Development |
+| `TURSO_AUTH_TOKEN` | `<YOUR_TURSO_TOKEN>` (from Step 2.3) | Production, Preview, Development |
 | `Z_AI_API_KEY` | (your Z.AI API key) | Production, Preview, Development |
 
 > ⚠️ อย่า commit `.env` ขึ้น git! ใช้เฉพาะ Vercel dashboard เท่านั้น

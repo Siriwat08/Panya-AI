@@ -1,15 +1,24 @@
 /**
- * Fetch latest 12 Supreme Court labor judgments from deka.in.th
+ * Fetch latest Supreme Court labor judgments from deka.in.th
  * URLs provided by user's previous AI research session.
  * 
  * Extracts: title, short summary, full judgment text, related laws
  * Then inserts into Turso judgments table (G503-G514).
+ *
+ * Usage: TURSO_URL=... TURSO_TOKEN=... bun scripts/fetch_latest_judgments.ts
+ * (NEVER hardcode tokens in source files — use env vars)
  */
 
 import { createClient } from '@libsql/client'
 
-const TURSO_URL = 'libsql://panya-ai-siriwat08.aws-ap-northeast-1.turso.io'
-const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODUyMzI3MjcsImlkIjoiMDE5ZmEzNzQtYjAwMS03MWZiLWJiZjYtNjQ2YThkMzNmMWViIiwia2lkIjoiLWg1N1RSRmlJT0dMdldjYmpRSU9uVDJLU0tZWW4xZE1zYi1yMlk1TzVLMCIsInJpZCI6ImUxODZhMzBkLWIwY2ItNDhjYi04YWFlLTZhMGE2OWU1YmYxNCJ9.xDpHYWYoV2GyxUOjBDXndONUu059L0hMjCFEJDXNwzwB6xm0icUCRSIQTWyt_a8opI7Wo1OVj9n59NZwfmk_DA'
+const TURSO_URL = process.env.TURSO_URL || ''
+const TURSO_TOKEN = process.env.TURSO_TOKEN || ''
+
+if (!TURSO_URL || !TURSO_TOKEN) {
+  console.error('❌ Missing TURSO_URL or TURSO_TOKEN env var')
+  console.error('   Usage: TURSO_URL=libsql://... TURSO_TOKEN=... bun scripts/fetch_latest_judgments.ts')
+  process.exit(1)
+}
 
 const client = createClient({ url: TURSO_URL, authToken: TURSO_TOKEN })
 
@@ -54,37 +63,24 @@ async function fetchJudgment(url: string): Promise<JudgmentData | null> {
     }
     const html = await resp.text()
 
-    // Extract deka number from URL (e.g., 2568-8320 → 8320/2568)
     const urlMatch = url.match(/\/(\d{4})-(\d+)/)
     const year = urlMatch ? urlMatch[1] : ''
     const caseNum = urlMatch ? urlMatch[2] : ''
     const dekaNo = `${caseNum}/${year}`
 
-    // Extract title from <title> tag
     const titleMatch = html.match(/<title>([^<]+)<\/title>/)
     const title = titleMatch ? titleMatch[1].replace(/\s*\|.*$/, '').trim() : `ฎีกาที่ ${dekaNo}`
 
-    // Extract meta description (short summary)
     const descMatch = html.match(/<meta name="description" content="([^"]+)"/)
     const shortSummary = descMatch ? descMatch[1] : ''
 
-    // Extract full judgment text from page content
-    // Look for content between specific markers
     let fullText = ''
-
-    // Try to find judgment content div
     const contentMatch = html.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
-    if (contentMatch) {
-      fullText = contentMatch[1]
-    }
-
-    // If not found, extract from article/main tags
+    if (contentMatch) fullText = contentMatch[1]
     if (!fullText) {
       const articleMatch = html.match(/<(?:article|main)[^>]*>([\s\S]*?)<\/(?:article|main)>/i)
       if (articleMatch) fullText = articleMatch[1]
     }
-
-    // Clean HTML tags
     fullText = fullText
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -102,7 +98,6 @@ async function fetchJudgment(url: string): Promise<JudgmentData | null> {
       .replace(/^[ \t]+/gm, '')
       .trim()
 
-    // If fullText is too short, use the whole page text
     if (fullText.length < 200) {
       fullText = html
         .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -115,7 +110,6 @@ async function fetchJudgment(url: string): Promise<JudgmentData | null> {
         .trim()
     }
 
-    // Extract related laws from content
     const relatedLaws: string[] = []
     const lawMatches = fullText.match(/พระราชบัญญัติ[^ก-๙]*?\d{4}|ประมวลกฎหมาย[^ก-๙]*?(?:\d{4})?/g)
     if (lawMatches) {
@@ -142,13 +136,11 @@ async function main() {
   for (const url of JUDGMENT_URLS) {
     const j = await fetchJudgment(url)
     if (j) results.push(j)
-    // Be polite — wait 1.5s between requests
     await new Promise(r => setTimeout(r, 1500))
   }
 
   console.log(`\n✓ Fetched ${results.length}/${JUDGMENT_URLS.length} judgments`)
 
-  // Insert into Turso (judgment_id 503-514)
   console.log('\n📤 Inserting into Turso...')
   let inserted = 0
   for (let i = 0; i < results.length; i++) {
@@ -173,19 +165,18 @@ async function main() {
           j.shortSummary.slice(0, 200) || null,
           JSON.stringify([]),
           JSON.stringify(j.relatedLaws),
-          j.shortSummary || null,  // fact = short summary
+          j.shortSummary || null,
           null,
           null,
           null,
           j.fullText,
           j.url,
-          3,  // source_id = 3 (PBuakhaw/deka_retrival — closest match)
+          3,
           j.fullText.length,
           `ดึงจาก deka.in.th เมื่อ 2026-07-28 — ฎีกาล่าสุดปี 2565-2568`,
         ],
       })
 
-      // Also insert RAG chunk
       const ragText = j.shortSummary + '\n\n' + j.fullText.slice(0, 3000)
       await client.execute({
         sql: `INSERT INTO rag_chunks (source_type, source_id, source_code, chunk_text, chunk_metadata)
@@ -213,7 +204,6 @@ async function main() {
     }
   }
 
-  // Verify
   const count = await client.execute('SELECT COUNT(*) as n FROM judgments')
   console.log(`\n📊 Total judgments in Turso: ${count.rows[0].n}`)
   console.log(`✓ Inserted ${inserted} new judgments`)
