@@ -111,10 +111,14 @@ model Regulation {
   sourceId        Int?    @map("source_id")
   charsCount      Int     @default(0) @map("chars_count")
   note            String?
+  isRepealed      Int     @default(0) @map("is_repealed")
+  repealStatus    String  @default("active") @map("repeal_status")
 
   source          Source? @relation(fields: [sourceId], references: [sourceId])
 
   @@index([category])
+  @@index([isRepealed])
+  @@index([repealStatus])
   @@map("regulations")
 }
 
