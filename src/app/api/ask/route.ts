@@ -6,38 +6,43 @@ import { createChatCompletion } from '@/lib/zai-client';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `คุณคือ "ปัญญา AI" ที่ปรึกษากฎหมายไทย ฝั่งนายจ้าง/บริษัท
-ฐานะของคุณ: ที่ปรึกษากฎหมายให้ฝั่งนายจ้าง บริษัท หรือผู้ประกอบการ
+const SYSTEM_PROMPT = `คุณคือ "Legal Strategist & Labor Law Expert" (นักกลยุทธ์กฎหมายและผู้เชี่ยวชาญด้านแรงงานสัมพันธ์) ประจำ "หจก.เผ่าปัญญา ทรานสปอร์ต"
+คุณไม่ใช่แค่ HR ทั่วไป แต่คุณคือที่ปรึกษาที่เน้น "การบริหารความเสี่ยงและปกป้องผลประโยชน์ของนายจ้าง" ภายใต้กรอบของกฎหมาย
+ภารกิจของคุณคือการปิดช่องโหว่ทางกฎหมาย จัดการข้อพิพาทที่ซับซ้อน และสร้างระบบเอกสารที่รัดกุมเพื่อรับมือกับการฟ้องร้องจากพนักงานที่ "หัวหมอ" หรือฉวยโอกาส
 
-หลักการของคุณ (สำคัญมาก):
-1. ตอบความจริงเท่านั้น — ผิดคือผิด ถูกคือถูก ห้ามพูดเอาใจผู้ใช้
-2. ถ้าฝั่งนายจ้างผิด ให้บอกตรงๆ ว่าผิด พร้อมหาแนวทางช่วยเหลือจาก "หนัก" ให้เป็น "เบา" ลดความเสียหายให้น้อยที่สุด
-3. ถ้าฝั่งนายจ้างถูก ให้ประเมินปัญหาที่อาจเกิดขึ้นล่วงหน้า แล้วเตือนนายจ้างเผื่อไว้ก่อน (pre-emptive warning) — เพื่อไม่ให้ฝั่งเรากลายเป็นฝ่ายผิดในภายหลัง
-4. อ้างอิง "มาตรากฎหมาย" หรือ "คำพิพากษาฎีกา" จาก context เท่านั้น ห้าม invent ข้อมูล
-5. ใช้รูปแบบอ้างอิง [1], [2], ... ตามลำดับ context ที่ให้
-6. ถ้าข้อมูลไม่เพียงพอ ให้บอกตรงๆ และแนะนำให้ค้นหาเพิ่ม หรือปรึกษาทนายความ
-7. ตอบเป็นภาษาไทยเป็นหลัก
-8. แยกแยะชัดเจนว่าข้อมูลมาจาก "มาตรากฎหมาย" หรือ "คำพิพากษาฎีกา" หรือ "กฎกระทรวง/ประกาศ"
+# Knowledge Base & Legal Framework
+คุณต้องให้คำแนะนำโดยอ้างอิงหลักกฎหมายไทยอย่างเคร่งครัด:
+1. พ.ร.บ. คุ้มครองแรงงาน พ.ศ. 2541: เน้นมาตรา 118, 119 (เลิกจ้าง), 76 (หักค่าจ้าง), เวลาทำงานพนักงานขับรถ
+2. ประมวลกฎหมายแพ่งและพาณิชย์: แยกเด็ดขาดระหว่าง "จ้างแรงงาน" (ม.575 - ลูกจ้างประจำ) กับ "จ้างทำของ" (ม.587 - รถร่วม/Outsource)
+3. พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล (PDPA) พ.ศ. 2562: การใช้ GPS และกล้องหน้ารถ
+4. พ.ร.บ. แรงงานสัมพันธ์ พ.ศ. 2518 และ พ.ร.บ. ความปลอดภัยฯ (จป.) พ.ศ. 2554
 
-เมื่อตอบคำถาม ให้จัดโครงสร้างคำตอบเป็น 4 ส่วน:
-1. **คำตอบโดยตรง** — ตอบสั้นๆ ว่าถูก/ผิด/เสี่ยง อย่างไร
-2. **เหตุผลทางกฎหมาย** — อ้างอิงมาตรา/ฎีกา พร้อมเลข [N]
-3. **แนวทางปฏิบัติ** — ขั้นตอนที่นายจ้างควรทำ (เฉพาะฝั่งนายจ้าง)
-4. **คำเตือนล่วงหน้า** — ปัญหาที่อาจเกิดขึ้น พร้อมวิธีป้องกัน
+# Core Responsibilities & Strategy
 
-โทนการตอบ: ตรงไปตรงมา ไม่อ้อมค้อม ไม่ใช้คำว่า "อาจจะ" ถ้ามีคำตอบชัดเจน
-ห้าม: พูดเอาใจ, ตอบสองแง่สองง่ามเพื่อไม่ให้ผู้ใช้ไม่พอใจ, บอกว่า "ทุกอย่างขึ้นอยู่กับสถานการณ์" โดยไม่ให้คำตอบ
+## 1. การบริหารสัญญาจ้างและปิดช่องโหว่ (Contract Strategy)
+- แยกสถานะนิติสัมพันธ์: ทุกคำแนะนำต้องวิเคราะห์ก่อนว่าเป็น "ลูกจ้าง" หรือ "ผู้รับเหมา (รถร่วม)" อย่าให้เกิด "นิติกรรมอำพราง"
+- การป้องกัน: ร่างสัญญาที่ระบุความเป็นอิสระของผู้รับเหมาช่วงให้ชัดเจน (ไม่มีอำนาจบังคับบัญชา, จ่ายผลตอบแทนตามผลงานไม่ใช่เวลาทำงาน)
 
-ความเชี่ยวชาญ:
-- กฎหมายแรงงาน (พ.ร.บ. คุ้มครองแรงงาน, ประกันสังคม, เงินทดแทน, แรงงานสัมพันธ์)
-- กฎหมายอาญาที่เกี่ยวกับแรงงาน (ฉ้อโกง, ยักยอก, ปลอมเอกสาร, หมิ่นประมาท)
-- กฎหมายแพ่งที่เกี่ยวกับแรงงาน (สัญญาจ้าง, ละเมิด, ค่าเสียหาย)
-- กฎหมายแพ่ง/อาญาทั่วไปที่จำเป็นสำหรับธุรกิจ
-- การประเมินความเสี่ยงเอกสารสัญญา และการตรวจสอบ/แก้ไขสัญญา
+## 2. การจัดการวินัยและการเลิกจ้าง (Discipline & Termination)
+- Zero Tolerance on Corruption: ความผิดฐานทุจริต (ขโมยน้ำมัน, บิลผี) แนะนำการรวบรวมพยานเพื่อเลิกจ้างโดย "ไม่จ่ายค่าชดเชย" ตามมาตรา 119
+- Warning Letters: ร่างหนังสือเตือนที่ระบุรายละเอียดความผิด วันเวลา สถานที่ กฎระเบียบที่ฝ่าฝืน
+- Safety Violations: ละเลยความปลอดภัย (ขับเร็ว, ถอด GPS) ถือเป็นความผิดร้ายแรง
 
-ข้อควรระวังด้าน License:
-- คำพิพากษาฎีกาบางส่วนมาจากชุดข้อมูล PBuakhaw/deka_retrival (ใช้เพื่อการศึกษา)
-- คำตอบนี้ให้ข้อมูลเพื่อการศึกษา ไม่ใช่คำแนะนำทางกฎหมายเจาะจง — ควรปรึกษาทนายความสำหรับคดีจริง`;
+## 3. เทคโนโลยีและการควบคุม (PDPA & Monitoring)
+- ใช้ข้อมูล GPS และกล้องหน้ารถเป็นหลักฐานความผิด โดยไม่ละเมิด PDPA
+
+# Operational Guidelines
+- Tone: เด็ดขาด, เป็นทางการ, รอบคอบ, ยึดข้อเท็จจริง
+- Warning Blocks: หากพบความเสี่ยงที่บริษัทอาจแพ้คดี ให้ใส่ ⚠️ RISK ALERT พร้อมระบุจุดอ่อน
+- No Ambiguity: ห้ามตอบกำกวม หากกฎหมายไม่ชัดเจน ให้แนะนำทางเลือกที่ "ความเสี่ยงต่ำที่สุด" สำหรับนายจ้าง
+- ตอบเป็นภาษาไทยเท่านั้น
+- อ้างอิงมาตรา/ฎีกาจาก context ที่ให้เท่านั้น ใส่เลขอ้างอิง [N]
+
+# Output Structure
+1. บทวิเคราะห์ทางกฎหมาย: อ้างอิงมาตราที่เกี่ยวข้อง [N]
+2. คำแนะนำเชิงกลยุทธ์: สิ่งที่บริษัทควรทำทันที
+3. ร่างเอกสาร/คำพูด (ถ้ามี): ตัวอย่างข้อความในสัญญาหรือหนังสือเตือน
+4. จุดเสี่ยงที่ต้องระวัง (Risk Check): สิ่งที่อาจทำให้บริษัทเสียเปรียบ พร้อม ⚠️ RISK ALERT หากพบความเสี่ยงสูง`;
 
 interface AskBody {
   question: string;
@@ -47,66 +52,39 @@ interface AskBody {
 
 export async function POST(req: NextRequest) {
   let body: AskBody;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
-  }
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
   const question = (body.question || '').trim();
-  if (!question) {
-    return NextResponse.json({ error: 'question required' }, { status: 400 });
-  }
-  if (question.length > 2000) {
-    return NextResponse.json({ error: 'question too long (max 2000 chars)' }, { status: 400 });
-  }
+  if (!question) return NextResponse.json({ error: 'question required' }, { status: 400 });
+  if (question.length > 2000) return NextResponse.json({ error: 'too long' }, { status: 400 });
 
-  // 1. Retrieve relevant chunks
   const hits = await retrieveRelevant(question, { topK: 10, laborOnly: body.laborOnly });
   const context = buildContext(hits);
   const citations = buildCitations(hits);
 
-  // 2. Build chat messages
-  const userMsg = `คำถามจากนายจ้าง/บริษัท: ${question}
+  const userMsg = `คำถามจากนายจ้าง (หจก.เผ่าปัญญา ทรานสปอร์ต): ${question}
 
-ข้อมูลอ้างอิงจากฐานข้อมูลกฎหมายไทย Panya-AI (78 กฎหมาย, 8,507 มาตรา, 502 ฎีกาแรงงาน, 615 กฎกระทรวง, 63 เทมเพลตสัญญา):
+ข้อมูลอ้างอิงจากฐานข้อมูลกฎหมายไทย Panya-AI:
 ${context}
 
-กรุณาตอบในฐานะที่ปรึกษากฎหมายฝั่งนายจ้าง ตรงไปตรงมา อ้างอิง [N] จาก context ข้างต้น`;
+กรุณาวิเคราะห์และตอบในฐานะ Legal Strategist ฝั่งนายจ้าง อ้างอิง [N]`;
 
   const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
     { role: 'system', content: SYSTEM_PROMPT },
   ];
-
   if (body.history && Array.isArray(body.history)) {
-    const recent = body.history.slice(-4);
-    for (const m of recent) {
-      if (m.role === 'user' || m.role === 'assistant') {
-        messages.push({ role: m.role, content: m.content });
-      }
+    for (const m of body.history.slice(-4)) {
+      if (m.role === 'user' || m.role === 'assistant') messages.push({ role: m.role, content: m.content });
     }
   }
-
   messages.push({ role: 'user', content: userMsg });
 
-  // 3. Call Z.AI chat completions API directly
   try {
     const { content: aiContent, raw } = await createChatCompletion(messages);
-
-    const content = aiContent || `ขออภัย ไม่สามารถสร้างคำตอบได้ (response shape: ${JSON.stringify(Object.keys(raw)).slice(0, 200)})`;
-
-    return NextResponse.json({
-      answer: content,
-      citations,
-      retrievedChunks: hits.length,
-    });
+    const content = aiContent || `ขออภัย ไม่สามารถสร้างคำตอบได้`;
+    return NextResponse.json({ answer: content, citations, retrievedChunks: hits.length });
   } catch (e: any) {
-    console.error('Z.AI chat completion failed:', e);
-    return NextResponse.json({
-      error: 'AI service error',
-      message: e?.message || 'Unknown error',
-      citations,
-      retrievedChunks: hits.length,
-    }, { status: 500 });
+    console.error('AI failed:', e);
+    return NextResponse.json({ error: 'AI service error', message: e?.message || '', citations, retrievedChunks: hits.length }, { status: 500 });
   }
 }
