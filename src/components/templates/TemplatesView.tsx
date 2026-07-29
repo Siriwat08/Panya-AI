@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { FileText, ChevronRight, Download, Search } from 'lucide-react';
-import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -71,7 +70,7 @@ export function TemplatesView() {
       {/* Category filter */}
       <div className="flex flex-wrap gap-1.5 mb-6">
         {categories.map(c => (
-          <button type="button" onClick={() => setFilter(c)}
+          <button type="button" key={c} onClick={() => setFilter(c)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition border ${
               filter === c
                 ? 'bg-gold text-navy border-gold'
@@ -84,25 +83,34 @@ export function TemplatesView() {
       </div>
 
       {/* Templates grid */}
-      {loading ? (
-        <div className="text-center py-20 text-muted-foreground">กำลังโหลด…</div>
-      ) : visible.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          ไม่พบเอกสารที่ตรงกับเงื่อนไข
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {visible.map(t => (
-            <TemplateCard key={t.templateId} template={t} />
-          ))}
-        </div>
-      )}
+      {renderTemplatesList(loading, visible)}
     </div>
   );
 }
 
-function TemplateCard({ template }: { template: Template }) {
+/** Renders the templates list — extracted to satisfy S3358 (no nested ternary). */
+function renderTemplatesList(loading: boolean, visible: Template[]) {
+  if (loading) {
+    return <div className="text-center py-20 text-muted-foreground">กำลังโหลด…</div>;
+  }
+  if (visible.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+        ไม่พบเอกสารที่ตรงกับเงื่อนไข
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {visible.map(t => (
+        <TemplateCard key={t.templateId} template={t} />
+      ))}
+    </div>
+  );
+}
+
+function TemplateCard({ template }: { readonly template: Template }) {
   const catLabel = CATEGORY_LABELS[template.category] || template.category;
   return (
     <div className="card-premium rounded-xl p-4 group">

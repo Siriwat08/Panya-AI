@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { retrieveRelevant, buildContext, buildCitations } from '@/lib/rag';
 import { createChatCompletion } from '@/lib/zai-client';
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, Menu, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigation } from '@/lib/navigation';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ExternalLink, Scale, AlertTriangle, BookOpen, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Scale, AlertTriangle, BookOpen, ChevronRight } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +32,7 @@ interface SectionData {
   }>;
 }
 
-export function SectionView({ sectionId }: { sectionId: number }) {
+export function SectionView({ sectionId }: { readonly sectionId: number }) {
   const { navigate } = useNavigation();
   const [data, setData] = useState<SectionData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,7 +124,7 @@ export function SectionView({ sectionId }: { sectionId: number }) {
         ) : (
           <div className="space-y-3">
             {data.relatedJudgments.map(j => (
-              <button type="button" onClick={() => navigate({ name: 'judgment', judgmentId: j.judgmentId })}
+              <button type="button" key={j.judgmentId} onClick={() => navigate({ name: 'judgment', judgmentId: j.judgmentId })}
                 className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-3 mb-2">

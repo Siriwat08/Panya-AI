@@ -7,10 +7,10 @@ import { useBookmarks } from '@/lib/navigation';
 import { toast } from 'sonner';
 
 interface Props {
-  type: 'section' | 'judgment' | 'law';
-  id: number;
-  label: string;
-  url: string;
+  readonly type: 'section' | 'judgment' | 'law';
+  readonly id: number;
+  readonly label: string;
+  readonly url: string;
 }
 
 export function BookmarkButton({ type, id, label, url }: Props) {

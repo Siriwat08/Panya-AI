@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Send, Loader2, Sparkles, AlertTriangle, ChevronRight, ExternalLink, Trash2 } from 'lucide-react';
+import { Send, Loader2, Sparkles, ChevronRight, Trash2 } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,8 @@ interface ChatMessage {
   citations?: Citation[];
   retrievedChunks?: number;
   error?: boolean;
+  /** Stable unique id for keying — uses timestamp + role + sequence */
+  uid: string;
 }
 
 const SAMPLE_QUESTIONS = [
@@ -47,7 +49,7 @@ export function AskView() {
 
   const ask = async (question: string) => {
     if (!question.trim() || loading) return;
-    const userMsg: ChatMessage = { role: 'user', content: question };
+    const userMsg: ChatMessage = { role: 'user', content: question, uid: `u-${Date.now()}` };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
@@ -72,6 +74,7 @@ export function AskView() {
             citations: data.citations || [],
             retrievedChunks: data.retrievedChunks,
             error: true,
+            uid: `a-err-${Date.now()}`,
           },
         ]);
       } else {
@@ -82,6 +85,7 @@ export function AskView() {
             content: data.answer,
             citations: data.citations || [],
             retrievedChunks: data.retrievedChunks,
+            uid: `a-${Date.now()}`,
           },
         ]);
       }
@@ -92,6 +96,7 @@ export function AskView() {
           role: 'assistant',
           content: `เกิดข้อผิดพลาดในการเชื่อมต่อ: ${e.message || 'Unknown error'}`,
           error: true,
+          uid: `a-throw-${Date.now()}`,
         },
       ]);
     } finally {
@@ -146,8 +151,8 @@ export function AskView() {
               คลิกที่คำถามเพื่อเริ่มต้น หรือพิมพ์คำถามของคุณเองด้านล่าง
             </p>
             <div className="grid gap-2 text-left">
-              {SAMPLE_QUESTIONS.map((q, i) => (
-                <button type="button" onClick={() => ask(q)}
+              {SAMPLE_QUESTIONS.map((q) => (
+                <button type="button" key={q} onClick={() => ask(q)}
                   className="px-4 py-2.5 rounded-lg bg-card-softer border border-border/40 hover:border-gold/30 hover:bg-accent/30 transition text-sm text-foreground/90"
                 >
                   <span className="text-gold mr-2">›</span>
@@ -158,8 +163,8 @@ export function AskView() {
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} msg={msg} onCitationClick={(url) => {
+        {messages.map((msg) => (
+          <MessageBubble key={msg.uid} msg={msg} onCitationClick={(url) => {
             // Parse url like /?view=section&id=123
             const params = new URLSearchParams(url.split('?')[1] || '');
             const view = params.get('view');
@@ -242,21 +247,14 @@ function MessageBubble({
   msg,
   onCitationClick,
 }: {
-  msg: ChatMessage;
-  onCitationClick: (url: string) => void;
+  readonly msg: ChatMessage;
+  readonly onCitationClick: (url: string) => void;
 }) {
   const isUser = msg.role === 'user';
+  const bubbleClass = getBubbleClassName(isUser, msg.error);
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-          isUser
-            ? 'bg-gradient-to-br from-gold to-gold/80 text-navy rounded-br-md'
-            : msg.error
-            ? 'card-premium border-destructive/30 rounded-bl-md'
-            : 'card-premium rounded-bl-md'
-        }`}
-      >
+      <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${bubbleClass}`}>
         {/* Content */}
         <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed">{msg.content}</div>
 
@@ -268,7 +266,7 @@ function MessageBubble({
             </div>
             <div className="grid gap-1.5">
               {msg.citations.map(c => (
-                <button type="button" onClick={() => onCitationClick(c.url)}
+                <button type="button" key={`${c.type}-${c.id}-${c.index}`} onClick={() => onCitationClick(c.url)}
                   className="flex items-start gap-2 text-left p-2 rounded-lg bg-card-softer hover:bg-accent/30 border border-border/30 hover:border-gold/30 transition group"
                 >
                   <Badge variant="outline" className="badge-gold text-[10px] flex-shrink-0">
@@ -295,6 +293,13 @@ function MessageBubble({
       </div>
     </div>
   );
+}
+
+/** Resolves the bubble className from role + error state — extracted to satisfy S3358 (no nested ternary). */
+function getBubbleClassName(isUser: boolean, isError?: boolean): string {
+  if (isUser) return 'bg-gradient-to-br from-gold to-gold/80 text-navy rounded-br-md';
+  if (isError) return 'card-premium border-destructive/30 rounded-bl-md';
+  return 'card-premium rounded-bl-md';
 }
 
 // Tiny inline icons to avoid import bloat in map

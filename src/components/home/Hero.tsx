@@ -5,7 +5,7 @@ import { ArrowRight, Scale, Sparkles, BookOpen, Gavel } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import type { DashboardStats } from '@/lib/types';
 
-export function Hero({ stats }: { stats: DashboardStats | null }) {
+export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
   const { navigate } = useNavigation();
 
   return (
@@ -68,7 +68,7 @@ export function Hero({ stats }: { stats: DashboardStats | null }) {
   );
 }
 
-function StatsStrip({ stats }: { stats: DashboardStats }) {
+function StatsStrip({ stats }: { readonly stats: DashboardStats }) {
   const items = [
     { label: 'กฎหมาย', labelEn: 'Laws', value: stats.totalLaws, icon: BookOpen },
     { label: 'มาตรา', labelEn: 'Sections', value: stats.totalSections, icon: Scale },

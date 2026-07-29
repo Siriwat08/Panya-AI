@@ -47,11 +47,13 @@ export function Sidebar() {
         </button>
       )}
 
-      {/* Mobile overlay */}
+      {/* Mobile overlay — native <button> so it's keyboard-accessible & screen-reader friendly */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+        <button
+          type="button"
           onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-black/50 md:hidden cursor-default"
+          aria-label="ปิดเมนู"
         />
       )}
 

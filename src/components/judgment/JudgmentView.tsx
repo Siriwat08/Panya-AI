@@ -35,7 +35,7 @@ interface JudgmentData {
   }>;
 }
 
-export function JudgmentView({ judgmentId }: { judgmentId: number }) {
+export function JudgmentView({ judgmentId }: { readonly judgmentId: number }) {
   const { navigate } = useNavigation();
   const [data, setData] = useState<JudgmentData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,7 +172,7 @@ export function JudgmentView({ judgmentId }: { judgmentId: number }) {
           <div className="flex flex-wrap gap-2">
             {lawRefs.map((ref, i) => (
               <span
-                key={i}
+                key={ref}
                 className="inline-block px-3 py-1 rounded-md bg-card-softer border border-border/40 text-xs text-foreground/90"
               >
                 {ref}

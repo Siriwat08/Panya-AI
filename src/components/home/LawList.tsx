@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, ChevronRight, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Badge } from '@/components/ui/badge';
 import type { LawSummary } from '@/lib/types';
@@ -19,7 +19,7 @@ const CATEGORY_LABEL: Record<string, { th: string; en: string }> = {
   other: { th: 'อื่นๆ', en: 'Other' },
 };
 
-export function LawList({ laws }: { laws: LawSummary[] }) {
+export function LawList({ laws }: { readonly laws: LawSummary[] }) {
   const { navigate } = useNavigation();
   const [filter, setFilter] = useState<string>('all');
   const [expanded, setExpanded] = useState(false);
@@ -96,19 +96,9 @@ export function LawList({ laws }: { laws: LawSummary[] }) {
         </div>
       )}
 
-      {/* Laws grid — only render when expanded */}
+      {/* Laws grid — only render when expanded; otherwise show category teaser cards */}
       {expanded ? (
-        visibleLaws.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleLaws.map(law => (
-              <LawCard key={law.lawId} law={law} onClick={() => navigate({ name: 'law', lawId: law.lawId })} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-10 text-sm text-muted-foreground">
-            ไม่มีกฎหมายในหมวดนี้
-          </div>
-        )
+        <LawsGrid laws={visibleLaws} navigate={navigate} />
       ) : (
         /* Collapsed teaser — show category counts only */
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -138,7 +128,21 @@ export function LawList({ laws }: { laws: LawSummary[] }) {
   );
 }
 
-function LawCard({ law, onClick }: { law: LawSummary; onClick: () => void }) {
+/** Renders the grid of law cards, or an empty-state message if no laws match the filter. */
+function LawsGrid({ laws, navigate }: { readonly laws: LawSummary[]; readonly navigate: (v: any) => void }) {
+  if (laws.length === 0) {
+    return <div className="text-center py-10 text-sm text-muted-foreground">ไม่มีกฎหมายในหมวดนี้</div>;
+  }
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {laws.map(law => (
+        <LawCard key={law.lawId} law={law} onClick={() => navigate({ name: 'law', lawId: law.lawId })} />
+      ))}
+    </div>
+  );
+}
+
+function LawCard({ law, onClick }: { readonly law: LawSummary; readonly onClick: () => void }) {
   const cat = CATEGORY_LABEL[law.category || 'other'] || { th: law.category, en: '' };
   return (
     <button type="button" onClick={onClick} className="card-premium rounded-xl p-4 text-left hover:border-gold/40 transition group w-full">

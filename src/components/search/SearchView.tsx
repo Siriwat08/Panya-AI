@@ -53,16 +53,16 @@ function highlightSnippet(text: string): { __html: string } {
   // The snippet from FTS contains << and >> markers
   // Convert to <mark> with gold highlight
   const escaped = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
   const html = escaped
-    .replace(/&lt;&lt;/g, '<mark class="bg-gold/30 text-gold rounded px-0.5">')
-    .replace(/&gt;&gt;/g, '</mark>');
+    .replaceAll('&lt;&lt;', '<mark class="bg-gold/30 text-gold rounded px-0.5">')
+    .replaceAll('&gt;&gt;', '</mark>');
   return { __html: html };
 }
 
-export function SearchView({ initialQ, initialType }: { initialQ?: string; initialType?: SearchType }) {
+export function SearchView({ initialQ, initialType }: { readonly initialQ?: string; readonly initialType?: SearchType }) {
   const { navigate } = useNavigation();
   const [q, setQ] = useState(initialQ || '');
   const [type, setType] = useState<SearchType>(initialType || 'all');
@@ -139,7 +139,7 @@ export function SearchView({ initialQ, initialType }: { initialQ?: string; initi
           { v: 'judgments', label: 'คำพิพากษา' },
           { v: 'laws', label: 'ชื่อกฎหมาย' },
         ] as Array<{ v: SearchType; label: string }>).map(opt => (
-          <button type="button" onClick={() => {
+          <button type="button" key={opt.v} onClick={() => {
               setType(opt.v);
               if (q.trim()) runSearch(q, opt.v);
             }}
@@ -165,7 +165,7 @@ export function SearchView({ initialQ, initialType }: { initialQ?: string; initi
           {results.laws.length > 0 && (
             <ResultGroup title="กฎหมาย" icon={BookOpen} count={results.laws.length}>
               {results.laws.map(law => (
-                <button type="button" onClick={() => navigate({ name: 'law', lawId: law.id })}
+                <button type="button" key={law.id} onClick={() => navigate({ name: 'law', lawId: law.id })}
                   className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
@@ -187,7 +187,7 @@ export function SearchView({ initialQ, initialType }: { initialQ?: string; initi
           {results.sections.length > 0 && (
             <ResultGroup title="มาตรากฎหมาย" icon={BookOpen} count={results.sections.length}>
               {results.sections.map(s => (
-                <button type="button" onClick={() => navigate({ name: 'section', sectionId: s.id })}
+                <button type="button" key={s.id} onClick={() => navigate({ name: 'section', sectionId: s.id })}
                   className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
                 >
                   <div className="flex items-start gap-3">
@@ -220,7 +220,7 @@ export function SearchView({ initialQ, initialType }: { initialQ?: string; initi
           {results.judgments.length > 0 && (
             <ResultGroup title="คำพิพากษาฎีกา" icon={Scale} count={results.judgments.length}>
               {results.judgments.map(j => (
-                <button type="button" onClick={() => navigate({ name: 'judgment', judgmentId: j.id })}
+                <button type="button" key={j.id} onClick={() => navigate({ name: 'judgment', judgmentId: j.id })}
                   className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
@@ -281,10 +281,10 @@ function ResultGroup({
   count,
   children,
 }: {
-  title: string;
-  icon: any;
-  count: number;
-  children: React.ReactNode;
+  readonly title: string;
+  readonly icon: any;
+  readonly count: number;
+  readonly children: React.ReactNode;
 }) {
   return (
     <div>

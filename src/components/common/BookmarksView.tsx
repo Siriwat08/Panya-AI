@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Bookmark, Trash2, ChevronRight, Scale, BookOpen } from 'lucide-react';
-import { useNavigation, useBookmarks } from '@/lib/navigation';
+import { useBookmarks } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -77,8 +77,6 @@ export function BookmarksView() {
                 }`}>
                   {item.type === 'judgment' ? (
                     <Scale className="h-5 w-5 text-gold" />
-                  ) : item.type === 'law' ? (
-                    <BookOpen className="h-5 w-5 text-foreground" />
                   ) : (
                     <BookOpen className="h-5 w-5 text-foreground" />
                   )}
@@ -89,7 +87,7 @@ export function BookmarksView() {
               >
                 <div className="flex items-center gap-2 mb-1">
                   <Badge variant="outline" className="text-[10px]">
-                    {item.type === 'judgment' ? 'ฎีกา' : item.type === 'law' ? 'กฎหมาย' : 'มาตรา'}
+                    {getBookmarkTypeLabel(item.type)}
                   </Badge>
                   <span className="text-[10px] text-muted-foreground">
                     {new Date(item.savedAt).toLocaleDateString('th-TH', {
@@ -116,4 +114,11 @@ export function BookmarksView() {
       )}
     </div>
   );
+}
+
+/** Resolves the Thai label for a bookmark type — extracted to satisfy S3358 (no nested ternary). */
+function getBookmarkTypeLabel(type: 'section' | 'judgment' | 'law'): string {
+  if (type === 'judgment') return 'ฎีกา';
+  if (type === 'law') return 'กฎหมาย';
+  return 'มาตรา';
 }

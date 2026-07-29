@@ -33,7 +33,7 @@ interface LawDetailData {
   }>;
 }
 
-export function LawView({ lawId }: { lawId: number }) {
+export function LawView({ lawId }: { readonly lawId: number }) {
   const { navigate } = useNavigation();
   const [law, setLaw] = useState<LawDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,8 +170,8 @@ function SectionCard({
   section,
   lawNameTh,
 }: {
-  section: LawDetailData['sections'][number];
-  lawNameTh: string;
+  readonly section: LawDetailData['sections'][number];
+  readonly lawNameTh: string;
 }) {
   const { navigate } = useNavigation();
   return (

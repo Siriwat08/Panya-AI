@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans_Thai, Noto_Serif_Thai, IBM_Plex_Sans_Thai, IBM_Plex_Serif } from "next/font/google";
+import { Noto_Sans_Thai, IBM_Plex_Sans_Thai, IBM_Plex_Serif } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 

@@ -75,7 +75,7 @@ export function AppShell() {
   );
 }
 
-function InvalidId({ message }: { message: string }) {
+function InvalidId({ message }: { readonly message: string }) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-20 text-center">
       <p className="text-destructive">{message}</p>
