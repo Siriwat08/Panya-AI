@@ -51,7 +51,8 @@ export async function GET(req: NextRequest) {
         }))
       }
     } catch (e) {
-      // cross_references might be empty
+      // cross_references might be empty — log and continue with empty array
+      console.warn('[judgments] cross_references query failed:', e instanceof Error ? e.message : String(e));
     }
 
     return NextResponse.json({

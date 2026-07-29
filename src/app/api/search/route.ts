@@ -244,7 +244,7 @@ export async function GET(req: NextRequest) {
     }));
     // Include laws that had section hits but weren't in the name match
     for (const [lawId, info] of lawsMap) {
-      if (!laws.find(l => l.id === lawId)) {
+      if (!laws.some(l => l.id === lawId)) {
         laws.push({
           type: 'law' as const,
           id: lawId,

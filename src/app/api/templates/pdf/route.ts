@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
 
   // Simple markdown-to-HTML conversion
   let html = (template.fullText || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 
   // Headers
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
@@ -49,13 +49,7 @@ export async function GET(req: NextRequest) {
   html = '<p>' + html + '</p>';
 
   // Replace placeholders (Thai + English conventions)
-  const replacements: { [k: string]: string } = {
-    '___________': employeeName ? `<u>&nbsp;${employeeName}&nbsp;</u>` : '___________',
-    '__________': employeeName ? `<u>&nbsp;${employeeName}&nbsp;</u>` : '__________',
-    '_________________________': employeeName ? `<u>&nbsp;${employeeName}&nbsp;</u>` : '_________________________',
-    '________________________': employeeName ? `<u>&nbsp;${employeeName}&nbsp;</u>` : '________________________',
-    '( ________________________________ )': employeeName ? `( <u>${employeeName}</u> )` : '( ________________________________ )',
-  };
+  // Note: actual replacement is done below via the auto-fill loop — kept for reference.
 
   // Auto-fill employee name in first 5 blank fields if employeeName provided
   if (employeeName) {
@@ -81,7 +75,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (startDate) {
-    html = html.replace(/วันที่\s*___\s*เดือน\s*__________\s*พ\.ศ\.\s*_____/g,
+    html = html.replace(/วันที่\s*_{2,}\s*เดือน\s*_{2,}\s*พ\.ศ\.\s*_{2,}/g,
       `วันที่ <u>&nbsp;${startDate}&nbsp;</u>`);
   }
 

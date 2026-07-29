@@ -81,7 +81,7 @@ export function useBookmarks() {
 
   const addBookmark = useCallback((item: { type: 'section' | 'judgment' | 'law'; id: number; label: string; url: string }) => {
     const items = getBookmarks();
-    if (!items.find(b => b.type === item.type && b.id === item.id)) {
+    if (!items.some(b => b.type === item.type && b.id === item.id)) {
       items.unshift({ ...item, savedAt: new Date().toISOString() });
       saveBookmarks(items);
     }

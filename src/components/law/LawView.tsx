@@ -45,7 +45,9 @@ export function LawView({ lawId }: { readonly lawId: number }) {
     setLoading(true);
     setError(null);
     const q = searchQ.trim();
-    const url = `/api/laws?id=${lawId}${q ? `&q=${encodeURIComponent(q)}` : ''}`;
+    const params = new URLSearchParams({ id: String(lawId) });
+    if (q) params.set('q', encodeURIComponent(q));
+    const url = `/api/laws?${params.toString()}`;
     fetch(url)
       .then(r => {
         if (!r.ok) throw new Error('Law not found');

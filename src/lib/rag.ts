@@ -54,7 +54,7 @@ const LEGAL_KEYWORDS = [
 ];
 
 function extractKeywords(query: string): string[] {
-  const cleaned = query.replace(/[?"'()\[\]{}]/g, ' ').trim();
+  const cleaned = query.replace(/[?"'()[\]{}]/g, ' ').trim();
   const tokens = cleaned.split(/\s+/).filter(t => t.length >= 3);
   const found: string[] = [];
   for (const term of LEGAL_KEYWORDS) {
@@ -264,7 +264,8 @@ export function buildContext(hits: RagHit[]): string {
     let ref = '';
     let type = '';
     if (h.sourceType === 'law_section') {
-      ref = `${h.lawTitle || 'กฎหมาย'} ${h.sectionNumberThai || `มาตรา ${h.sectionNumber}` || ''}`;
+      const sectionLabel = h.sectionNumberThai || (h.sectionNumber ? `มาตรา ${h.sectionNumber}` : '');
+      ref = `${h.lawTitle || 'กฎหมาย'} ${sectionLabel}`;
       type = 'มาตรากฎหมาย';
     } else if (h.sourceType === 'judgment') {
       ref = `ฎีกาที่ ${h.dekaNo} (${h.caseType || 'แรงงาน'})${h.judgmentTopic ? ' — ' + h.judgmentTopic : ''}`;
@@ -285,11 +286,12 @@ export function buildContext(hits: RagHit[]): string {
 export function buildCitations(hits: RagHit[]) {
   return hits.map((h, i) => {
     if (h.sourceType === 'law_section') {
+      const secLabel = h.sectionNumberThai || (h.sectionNumber ? `มาตรา ${h.sectionNumber}` : '');
       return {
         index: i + 1,
         type: 'section' as const,
         id: h.sectionId!,
-        label: `${h.lawTitle || 'กฎหมาย'} ${h.sectionNumberThai || `มาตรา ${h.sectionNumber}` || ''}`.trim(),
+        label: `${h.lawTitle || 'กฎหมาย'} ${secLabel}`.trim(),
         ref: h.sectionNumberThai || h.sectionNumber || '',
         snippet: h.chunkText.slice(0, 180),
         url: `/?view=section&id=${h.sectionId}`,

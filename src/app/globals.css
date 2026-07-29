@@ -205,7 +205,7 @@
   .prose-thai {
     line-height: 1.85;
     letter-spacing: 0.005em;
-    word-break: break-word;
+    overflow-wrap: anywhere;
   }
   .prose-thai p {
     margin-bottom: 0.85em;

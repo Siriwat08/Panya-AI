@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
       }))
     }
   } catch (e) {
-    // cross_references table might be empty — that's OK
+    // cross_references table might be empty — log and continue
+    console.warn('[sections] cross_references query failed:', e instanceof Error ? e.message : String(e));
   }
 
   // Also try: find judgments that cite this law's section number in laws_cited
@@ -79,7 +80,8 @@ export async function GET(req: NextRequest) {
         licenseNote: j.note,
       }))
     } catch (e) {
-      // ignore
+      // ignore — log so we can debug if it becomes a real failure
+      console.warn('[sections] laws_cited fallback query failed:', e instanceof Error ? e.message : String(e));
     }
   }
 
