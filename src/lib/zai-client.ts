@@ -6,7 +6,7 @@
  * 2. Z_AI_API_KEY + Z_AI_MODEL → Z.AI (legacy)
  *
  * OpenRouter: https://openrouter.ai — supports free models like
- *   - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+ *   - inclusionai/ling-3.0-flash:free
  *   - meta-llama/llama-3.3-70b-instruct
  *   - qwen/qwen3.7-flash
  *
@@ -43,7 +43,7 @@ async function callOpenRouter(
 ): Promise<{ content: string; raw: any }> {
   const url = 'https://openrouter.ai/api/v1/chat/completions';
   // Default: NVIDIA Nemotron 3 Ultra (free) — override via OPENROUTER_MODEL env
-  const model = options.model || process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
+  const model = options.model || process.env.OPENROUTER_MODEL || 'inclusionai/ling-3.0-flash:free';
 
   const body: any = {
     model,
