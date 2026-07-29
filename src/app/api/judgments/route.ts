@@ -9,13 +9,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   const category = searchParams.get('category'); // 'แรงงาน' | 'แพ่ง' | etc.
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '30', 10), 100);
+  const page = Number.parseInt(searchParams.get('page') || '1', 10);
+  const pageSize = Math.min(Number.parseInt(searchParams.get('pageSize') || '30', 10), 100);
   const skip = (page - 1) * pageSize;
 
   if (id) {
-    const judgmentId = parseInt(id, 10);
-    if (isNaN(judgmentId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    const judgmentId = Number.parseInt(id, 10);
+    if (Number.isNaN(judgmentId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
     const judgment = await db.judgment.findUnique({
       where: { judgmentId },

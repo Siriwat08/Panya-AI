@@ -71,9 +71,7 @@ export function TemplatesView() {
       {/* Category filter */}
       <div className="flex flex-wrap gap-1.5 mb-6">
         {categories.map(c => (
-          <button
-            key={c}
-            onClick={() => setFilter(c)}
+          <button$1 type="button"> setFilter(c)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition border ${
               filter === c
                 ? 'bg-gold text-navy border-gold'

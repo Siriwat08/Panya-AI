@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
   const salary = searchParams.get('salary') || '';
 
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-  const templateId = parseInt(id, 10);
-  if (isNaN(templateId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  const templateId = Number.parseInt(id, 10);
+  if (Number.isNaN(templateId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
   const template = await db.contractTemplate.findUnique({ where: { templateId } });
   if (!template) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
   if (salary) {
     let salCount = 0;
     html = html.replace(/(\d+)\s*บาท/g, (match, num) => {
-      if (salCount < 2 && parseInt(num) < 1000) {
+      if (salCount < 2 && Number.parseInt(num) < 1000) {
         salCount++;
         return `<u>&nbsp;${salary}&nbsp;</u> บาท`;
       }

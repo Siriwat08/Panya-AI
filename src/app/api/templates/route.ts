@@ -11,8 +11,8 @@ export async function GET(req: NextRequest) {
   const category = searchParams.get('category');
 
   if (id) {
-    const templateId = parseInt(id, 10);
-    if (isNaN(templateId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    const templateId = Number.parseInt(id, 10);
+    if (Number.isNaN(templateId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
     const template = await db.contractTemplate.findUnique({ where: { templateId } });
     if (!template) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(template);

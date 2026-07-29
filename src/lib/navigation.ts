@@ -17,10 +17,10 @@ export function useNavigation() {
 
     switch (v) {
       case 'laws': return { name: 'laws' };
-      case 'law': return { name: 'law', lawId: id ? parseInt(id, 10) : 0 };
-      case 'section': return { name: 'section', sectionId: id ? parseInt(id, 10) : 0 };
+      case 'law': return { name: 'law', lawId: id ? Number.parseInt(id, 10) : 0 };
+      case 'section': return { name: 'section', sectionId: id ? Number.parseInt(id, 10) : 0 };
       case 'judgments': return { name: 'judgments' };
-      case 'judgment': return { name: 'judgment', judgmentId: id ? parseInt(id, 10) : 0 };
+      case 'judgment': return { name: 'judgment', judgmentId: id ? Number.parseInt(id, 10) : 0 };
       case 'search': return { name: 'search', q: q || undefined, type: type || 'all' };
       case 'bookmarks': return { name: 'bookmarks' };
     case 'templates': return { name: 'templates' };

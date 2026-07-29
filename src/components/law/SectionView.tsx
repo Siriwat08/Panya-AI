@@ -124,9 +124,7 @@ export function SectionView({ sectionId }: { sectionId: number }) {
         ) : (
           <div className="space-y-3">
             {data.relatedJudgments.map(j => (
-              <button
-                key={j.judgmentId}
-                onClick={() => navigate({ name: 'judgment', judgmentId: j.judgmentId })}
+              <button$1 type="button"> navigate({ name: 'judgment', judgmentId: j.judgmentId })}
                 className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-3 mb-2">

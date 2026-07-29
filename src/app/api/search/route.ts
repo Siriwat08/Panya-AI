@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get('q') || '').trim();
   const type = searchParams.get('type') || 'all';
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100);
+  const limit = Math.min(Number.parseInt(searchParams.get('limit') || '20', 10), 100);
 
   if (!q) {
     return NextResponse.json({ sections: [], judgments: [], laws: [], regulations: [], templates: [], total: 0 });

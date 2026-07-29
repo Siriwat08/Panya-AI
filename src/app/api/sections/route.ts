@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-  const sectionId = parseInt(id, 10);
-  if (isNaN(sectionId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  const sectionId = Number.parseInt(id, 10);
+  if (Number.isNaN(sectionId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
   const section = await db.lawSection.findUnique({
     where: { sectionId },

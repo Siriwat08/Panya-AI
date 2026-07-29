@@ -48,9 +48,7 @@ export function AskCta() {
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">ตัวอย่างคำถาม</p>
               {SAMPLE_QUESTIONS.map((q, i) => (
-                <button
-                  key={i}
-                  onClick={() => navigate({ name: 'ask' })}
+                <button$1 type="button"> navigate({ name: 'ask' })}
                   className="w-full text-left px-4 py-3 rounded-lg bg-card-softer border border-border/40 hover:border-gold/30 hover:bg-accent/30 transition text-sm text-foreground/90"
                 >
                   <span className="text-gold mr-2">›</span>

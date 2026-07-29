@@ -34,9 +34,9 @@ export function BookmarksView() {
     const params = new URLSearchParams(item.url.split('?')[1] || '');
     const view = params.get('view');
     const id = params.get('id');
-    if (view === 'law' && id) navigate({ name: 'law', lawId: parseInt(id, 10) });
-    else if (view === 'section' && id) navigate({ name: 'section', sectionId: parseInt(id, 10) });
-    else if (view === 'judgment' && id) navigate({ name: 'judgment', judgmentId: parseInt(id, 10) });
+    if (view === 'law' && id) navigate({ name: 'law', lawId: Number.parseInt(id, 10) });
+    else if (view === 'section' && id) navigate({ name: 'section', sectionId: Number.parseInt(id, 10) });
+    else if (view === 'judgment' && id) navigate({ name: 'judgment', judgmentId: Number.parseInt(id, 10) });
   };
 
   return (
@@ -84,8 +84,7 @@ export function BookmarksView() {
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => handleNavigate(item)}
+              <button$1 type="button"> handleNavigate(item)}
                 className="flex-1 text-left group min-w-0"
               >
                 <div className="flex items-center gap-2 mb-1">

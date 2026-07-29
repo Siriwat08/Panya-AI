@@ -12,13 +12,13 @@ export async function GET(req: NextRequest) {
   const id = searchParams.get('id');
   const category = searchParams.get('category');
   const status = searchParams.get('status') || 'active'; // active | repealed | all
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '30', 10), 100);
+  const page = Number.parseInt(searchParams.get('page') || '1', 10);
+  const pageSize = Math.min(Number.parseInt(searchParams.get('pageSize') || '30', 10), 100);
   const skip = (page - 1) * pageSize;
 
   if (id) {
-    const regulationId = parseInt(id, 10);
-    if (isNaN(regulationId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    const regulationId = Number.parseInt(id, 10);
+    if (Number.isNaN(regulationId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
     const regulation = await db.regulation.findUnique({ where: { regulationId } });
     if (!regulation) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(regulation);

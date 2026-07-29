@@ -67,9 +67,7 @@ export function JudgmentsView() {
           { v: 'criminal', label: 'คดีอาญา (TSCC)' },
           { v: 'all', label: 'ทั้งหมด' },
         ] as const).map(opt => (
-          <button
-            key={opt.v}
-            onClick={() => { setCategory(opt.v); setPage(1); }}
+          <button$1 type="button"> { setCategory(opt.v); setPage(1); }}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
               category === opt.v
                 ? 'bg-gold text-navy border-gold'
@@ -107,9 +105,7 @@ export function JudgmentsView() {
 
           <div className="space-y-3">
             {data.data.map(j => (
-              <button
-                key={j.judgmentId}
-                onClick={() => navigate({ name: 'judgment', judgmentId: j.judgmentId })}
+              <button$1 type="button"> navigate({ name: 'judgment', judgmentId: j.judgmentId })}
                 className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-2 mb-2">

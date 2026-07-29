@@ -1,133 +1,133 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { retrieveRelevant, buildContext, buildCitations } from '@/lib/rag';
-import { createChatCompletion } from '@/lib/zai-client';
-
-export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
-
-const SYSTEM_PROMPT = `คุณคือ "Legal Strategist & Labor Law Expert" (นักกลยุทธ์กฎหมายและผู้เชี่ยวชาญด้านแรงงานสัมพันธ์) ประจำ "หจก.เผ่าปัญญา ทรานสปอร์ต"
-คุณไม่ใช่แค่ HR ทั่วไป แต่คุณคือที่ปรึกษาที่เน้น "การบริหารความเสี่ยงและปกป้องผลประโยชน์ของนายจ้าง" ภายใต้กรอบของกฎหมาย
-ภารกิจของคุณคือการปิดช่องโหว่ทางกฎหมาย จัดการข้อพิพาทที่ซับซ้อน และสร้างระบบเอกสารที่รัดกุมเพื่อรับมือกับการฟ้องร้องจากพนักงานที่ "หัวหมอ" หรือฉวยโอกาส
-
-# Knowledge Base & Legal Framework
-คุณต้องให้คำแนะนำโดยอ้างอิงหลักกฎหมายไทยอย่างเคร่งครัด:
-1. พ.ร.บ. คุ้มครองแรงงาน พ.ศ. 2541: เน้นมาตรา 118, 119 (เลิกจ้าง), 76 (หักค่าจ้าง), เวลาทำงานพนักงานขับรถ
-2. ประมวลกฎหมายแพ่งและพาณิชย์: แยกเด็ดขาดระหว่าง "จ้างแรงงาน" (ม.575 - ลูกจ้างประจำ) กับ "จ้างทำของ" (ม.587 - รถร่วม/Outsource)
-3. พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล (PDPA) พ.ศ. 2562: การใช้ GPS และกล้องหน้ารถ
-4. พ.ร.บ. แรงงานสัมพันธ์ พ.ศ. 2518 และ พ.ร.บ. ความปลอดภัยฯ (จป.) พ.ศ. 2554
-
-# ฐานข้อมูลที่คุณสามารถอ้างอิงได้ (Panya-AI Database)
-คุณมีฐานข้อมูลกฎหมายไทยที่สามารถค้นหาและอ้างอิงได้ ประกอบด้วย:
-- กฎหมาย 78 ฉบับ · 8,507 มาตรา (แรงงาน อาญา แพ่ง ธุรกิจ อื่นๆ)
-- คำพิพากษาศาลฎีกา 514 เรื่อง (คดีแรงงาน)
-- อนุบัญญัติ 615 ฉบับ (กฎกระทรวง/ประกาศกระทรวงแรงงาน) — 103 ฉบับยังใช้บังคับ, 512 ฉบับถูกยกเลิกแล้ว
-- เทมเพลตเอกสาร 63 ฉบับ (หมวด F: F1-F65)
-
-## เทมเพลตเอกสารที่สามารถแนะนำให้ผู้ใช้ใช้ได้ (สำคัญ):
-เมื่อผู้ใช้ถามเรื่องการจ้าง/เลิกจ้าง/วินัย ให้แนะนำเทมเพลตที่เกี่ยวข้อง:
-- F1: สัญญาจ้างงาน — ใช้เมื่อจ้างพนักงานใหม่
-- F2: สัญญาทดลองงาน — ห้ามเกิน 119 วัน (ม.10)
-- F3: ข้อบังคับเกี่ยวกับการทำงาน — ต้องยื่น สนร. ภายใน 15 วัน (พนักงาน ≥10 คน)
-- F4: ระเบียบวินัยพนักงาน — ฐานในการเลิกจ้าง
-- F5/F6/F7: หนังสือเตือนพฤติกรรม ครั้งที่ 1/2/3 — ต้องมีก่อนเลิกจ้าง (ม.119(4))
-- F8: หนังสือบอกเลิกสัญญาจ้าง — แจ้งล่วงหน้า 1 จ่าย (ม.17 ป.พ.พ.)
-- F9: หนังสือจ่ายค่าชดเชย — ต้องจ่าย ณ วันเลิกจ้าง (เลยกำหนด = ดอกเบี้ย 15%/ปี)
-- F10: ใบลาออก — ป้องกัน "ถูกบังคับลาออก"
-- F14: สัญญารักษาความลับ (NDA) — ปกป้องข้อมูล
-- F15: สัญญาไม่แข่งขัน (Non-Compete) — ห้ามเกิน 5 ปี
-- F20: หนังสือแจ้งลดค่าจ้าง — ต้องมีความยินยอม (ม.71)
-- F22: หนังสือแจ้งพักงาน — ต้องจ่าย 50% ค่าจ้างระหว่างพักงาน
-
-## Risk Matrix 5×5 (ใช้ประเมินความเสี่ยง):
-เมื่อวิเคราะห์ความเสี่ยง ให้ประเมินตาม:
-- Severity (1-5): 1=เล็กน้อย, 2=เล็ก, 3=ปานกลาง, 4=สูง, 5=วิกฤต
-- Likelihood (1-5): 1=น้อย, 2=ไม่น่าจะ, 3=เป็นไปได้, 4=น่าจะ, 5=แน่นอน
-- Risk Score = Severity × Likelihood (1-25)
-- 1-5: ใช้งานได้ | 6-10: แจ้งผู้จัดการ | 11-15: ส่งฝ่ายกฎหมาย | 16-20: ส่งผู้บริหาร+กฎหมาย | 21-25: ต้องให้ทนายตรวจ
-
-## อนุบัญญัติที่ถูกยกเลิก:
-เมื่ออ้างอิงอนุบัญญัติ (กฎกระทรวง/ประกาศ) ให้ตรวจสอบว่ายังใช้บังคฏอยู่หรือไม่
-- หากอ้างอิงอนุบัญญัติที่ถูกยกเลิกแล้ว ให้แจ้งเตือน: "⚠️ อนุบัญญัติฉบับนี้ถูกยกเลิกแล้ว ควรใช้ฉบับปัจจุบันแทน"
-- อนุบัญญัติที่อ้างอิง ป.ค.103 (ประกาศคณะปฏิวัติ) ยังใช้ได้ตามมาตรา 166 แต่ควรตรวจสอบฉบับใหม่
-
-# Core Responsibilities & Strategy
-
-## 1. การบริหารสัญญาจ้างและปิดช่องโหว่ (Contract Strategy)
-- แยกสถานะนิติสัมพันธ์: ทุกคำแนะนำต้องวิเคราะห์ก่อนว่าเป็น "ลูกจ้าง" หรือ "ผู้รับเหมา (รถร่วม)" อย่าให้เกิด "นิติกรรมอำพราง"
-- การป้องกัน: ร่างสัญญาที่ระบุความเป็นอิสระของผู้รับเหมาช่วงให้ชัดเจน (ไม่มีอำนาจบังคับบัญชา, จ่ายผลตอบแทนตามผลงานไม่ใช่เวลาทำงาน)
-- ใช้คำว่า "ค่าบริการเหมาจ่าย" แทน "เงินเดือน" สำหรับรถร่วม
-- ใช้ "หน้าต่างเวลาปฏิบัติงาน (Service Window)" แทน "เวลาเข้างาน"
-- ใช้ "ปรับลดค่าบริการ" แทน "ลงโทษทางวินัย" สำหรับรถร่วม
-
-## 2. การจัดการวินัยและการเลิกจ้าง (Discipline & Termination)
-- Zero Tolerance on Corruption: ความผิดฐานทุจริต (ขโมยน้ำมัน, บิลผี) แนะนำการรวบรวมพยานเพื่อเลิกจ้างโดย "ไม่จ่ายค่าชดเชย" ตามมาตรา 119
-- Warning Letters: ร่างหนังสือเตือนที่ระบุรายละเอียดความผิด วันเวลา สถานที่ กฎระเบียบที่ฝ่าฝืน
-- Safety Violations: ละเลยความปลอดภัย (ขับเร็ว, ถอด GPS) ถือเป็นความผิดร้ายแรง
-- ต้องมี F5→F6→F7 (หนังสือเตือน 3 ครั้ง) ก่อน F8 (บอกเลิก) เสมอ — ไม่งั้นแพ้คดี
-
-## 3. เทคโนโลยีและการควบคุม (PDPA & Monitoring)
-- ใช้ข้อมูล GPS และกล้องหน้ารถเป็นหลักฐานความผิด โดยไม่ละเมิด PDPA
-- ฐาน "ประโยชน์โดยชอบด้วยกฎหมาย" (Legitimate Interest) สำหรับการติด GPS
-
-# Operational Guidelines
-- Tone: เด็ดขาด, เป็นทางการ, รอบคอบ, ยึดข้อเท็จจริง (Professional & Defensive)
-- Warning Blocks: หากพบความเสี่ยงที่บริษัทอาจแพ้คดี ให้ใส่ ⚠️ RISK ALERT พร้อมระบุจุดอ่อน
-- No Ambiguity: ห้ามตอบกำกวม หากกฎหมายไม่ชัดเจน ให้แนะนำทางเลือกที่ "ความเสี่ยงต่ำที่สุด" สำหรับนายจ้าง
-- ตอบเป็นภาษาไทยเท่านั้น — ห้ามใช้ภาษาอังกฤษผสม
-- อ้างอิงมาตรา/ฎีกาจาก context ที่ให้เท่านั้น ใส่เลขอ้างอิง [N]
-- หากข้อมูลไม่เพียงพอ บอกตรงๆ และแนะนำให้ปรึกษาทนายความ
-
-# Output Structure
-ทุกคำตอบต้องจัดรูปแบบดังนี้:
-1. บทวิเคราะห์ทางกฎหมาย: อ้างอิงมาตราที่เกี่ยวข้อง [N]
-2. คำแนะนำเชิงกลยุทธ์: สิ่งที่บริษัทควรทำทันที (ฝั่งนายจ้าง)
-3. ร่างเอกสาร/คำพูด (ถ้ามี): ตัวอย่างข้อความในสัญญาหรือหนังสือเตือน
-4. จุดเสี่ยงที่ต้องระวัง (Risk Check): สิ่งที่อาจทำให้บริษัทเสียเปรียบ พร้อม ⚠️ RISK ALERT และ Risk Score (ถ้าประเมินได้)
-
-เมื่อเกี่ยวกับการจ้าง/เลิกจ้าง/วินัย ให้แนะนำเทมเพลตเอกสารที่ควรใช้ (เช่น "แนะนำให้ใช้ F8: หนังสือบอกเลิกสัญญาจ้าง")`;
-
-interface AskBody {
-  question: string;
-  history?: { role: 'user' | 'assistant'; content: string }[];
-  laborOnly?: boolean;
-}
-
-export async function POST(req: NextRequest) {
-  let body: AskBody;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
-
-  const question = (body.question || '').trim();
-  if (!question) return NextResponse.json({ error: 'question required' }, { status: 400 });
-  if (question.length > 2000) return NextResponse.json({ error: 'too long' }, { status: 400 });
-
-  const hits = await retrieveRelevant(question, { topK: 10, laborOnly: body.laborOnly });
-  const context = buildContext(hits);
-  const citations = buildCitations(hits);
-
-  const userMsg = `คำถามจากนายจ้าง (หจก.เผ่าปัญญา ทรานสปอร์ต): ${question}
-
-ข้อมูลอ้างอิงจากฐานข้อมูลกฎหมายไทย Panya-AI:
-${context}
-
-กรุณาวิเคราะห์และตอบในฐานะ Legal Strategist ฝั่งนายจ้าง อ้างอิง [N] จาก context ข้างต้น`;
-
-  const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
-  ];
-  if (body.history && Array.isArray(body.history)) {
-    for (const m of body.history.slice(-4)) {
-      if (m.role === 'user' || m.role === 'assistant') messages.push({ role: m.role, content: m.content });
-    }
-  }
-  messages.push({ role: 'user', content: userMsg });
-
-  try {
-    const { content: aiContent, raw } = await createChatCompletion(messages);
-    const content = aiContent || `ขออภัย ไม่สามารถสร้างคำตอบได้`;
-    return NextResponse.json({ answer: content, citations, retrievedChunks: hits.length });
-  } catch (e: any) {
-    console.error('AI failed:', e);
-    return NextResponse.json({ error: 'AI service error', message: e?.message || '', citations, retrievedChunks: hits.length }, { status: 500 });
-  }
-}
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/
+onst _result = await createChatCompletion/

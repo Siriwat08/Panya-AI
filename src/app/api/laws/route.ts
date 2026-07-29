@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get('q')?.trim();
 
   if (id) {
-    const lawId = parseInt(id, 10);
-    if (isNaN(lawId)) {
+    const lawId = Number.parseInt(id, 10);
+    if (Number.isNaN(lawId)) {
       return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
     }
     const law = await db.law.findUnique({
