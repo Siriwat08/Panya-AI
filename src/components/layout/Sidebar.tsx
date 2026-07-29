@@ -1,0 +1,179 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, FileText, Menu, X, ChevronLeft } from 'lucide-react';
+import { useNavigation } from '@/lib/navigation';
+import { cn } from '@/lib/utils';
+
+const NAV_ITEMS = [
+  { view: { name: 'home' } as const, label: 'หน้าแรก', icon: Home },
+  { view: { name: 'laws' } as const, label: 'กฎหมาย', icon: BookOpen },
+  { view: { name: 'judgments' } as const, label: 'คำพิพากษา', icon: Scale },
+  { view: { name: 'search' } as const, label: 'ค้นหา', icon: Search },
+  { view: { name: 'ask' } as const, label: 'ถาม AI', icon: MessageSquare, badge: 'AI' },
+  { view: { name: 'templates' } as const, label: 'เอกสาร', icon: FileText, badge: '63' },
+  { view: { name: 'bookmarks' } as const, label: 'บันทึก', icon: Bookmark },
+];
+
+export function Sidebar() {
+  const { getView, navigate } = useNavigation();
+  const [currentView, setCurrentView] = useState<{ name: string }>({ name: 'home' });
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const update = () => setCurrentView(getView() as any);
+    update();
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
+  }, [getView]);
+
+  return (
+    <>
+      {/* Mobile toggle button */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        className="fixed top-4 left-4 z-50 md:hidden flex h-10 w-10 items-center justify-center rounded-lg bg-card-soft border border-border/60"
+        aria-label="เปิดเมนู"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          'fixed md:sticky top-0 z-40 flex h-screen flex-col border-r border-border/60 bg-navy transition-all duration-240',
+          collapsed ? 'w-[72px]' : 'w-[264px]',
+          mobileOpen ? 'left-0' : '-left-[264px] md:left-0'
+        )}
+        style={{ background: 'var(--navy)' }}
+      >
+        {/* Brand */}
+        <div className="flex items-center gap-3 border-b border-border/40 p-5">
+          <button
+            type="button"
+            onClick={() => { navigate({ name: 'home' }); setMobileOpen(false); }}
+            className="flex items-center gap-3 group"
+            aria-label="Panya-AI"
+          >
+            <img
+              src="/panya-mascot.png"
+              alt="Panya-AI"
+              className="h-10 w-10 rounded-lg object-cover"
+            />
+            {!collapsed && (
+              <div className="flex flex-col items-start leading-none">
+                <span className="text-base font-bold tracking-tight">
+                  <span className="text-gradient-gold">ปัญญา AI</span>
+                </span>
+                <span className="text-[10px] text-muted-foreground tracking-widest uppercase">Panya-AI</span>
+              </div>
+            )}
+          </button>
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={() => setCollapsed(true)}
+              className="ml-auto text-muted-foreground hover:text-foreground"
+              aria-label="ย่อเมนู"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+          {collapsed && (
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              className="mx-auto text-muted-foreground hover:text-foreground"
+              aria-label="ขยายเมนู"
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Employer badge */}
+        {!collapsed && (
+          <div className="px-5 pt-3 pb-1">
+            <div className="flex items-center gap-2.5 rounded-lg border border-gold/30 bg-gold/10 px-3 py-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-gold shadow-[0_0_0_3px_rgba(201,169,97,0.2)]" />
+              <div className="text-xs">
+                <div className="font-semibold text-gold">โหมด: ฝั่งนายจ้าง</div>
+                <div className="text-[10px] text-muted-foreground">Employer Side</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto p-3">
+          {!collapsed && (
+            <div className="px-2 pb-2 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              เมนูหลัก
+            </div>
+          )}
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentView.name === item.view.name;
+            return (
+              <button
+                type="button"
+                key={item.view.name}
+                onClick={() => { navigate(item.view); setMobileOpen(false); }}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm transition',
+                  collapsed ? 'justify-center' : 'justify-start',
+                  isActive
+                    ? 'border-l-gold bg-gold/10 font-semibold text-gold'
+                    : 'border-l-transparent text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                )}
+                title={collapsed ? item.label : undefined}
+              >
+                <Icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={isActive ? 1.8 : 1.5} />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.badge && (
+                      <span className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                        item.badge === 'AI'
+                          ? 'bg-gold text-navy'
+                          : 'bg-white/10 text-muted-foreground'
+                      )}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* User info */}
+        {!collapsed && (
+          <div className="border-t border-border/40 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold/70 text-sm font-bold text-navy">
+                ศว
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">คุณศิริวัฒน์</div>
+                <div className="text-[11px] text-muted-foreground">HR · เผ่าปัญญา ทรานสปอร์ต</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </aside>
+    </>
+  );
+}

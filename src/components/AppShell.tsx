@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Header, Footer } from '@/components/layout/Header';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { HomeView } from '@/components/home/HomeView';
 import { LawsView } from '@/components/law/LawsView';
 import { LawView } from '@/components/law/LawView';
@@ -51,9 +51,9 @@ export function AppShell() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto bg-background">
         {view.name === 'home' && <HomeView />}
         {view.name === 'laws' && <LawsView />}
         {view.name === 'law' && view.lawId > 0 && <LawView lawId={view.lawId} />}
@@ -70,7 +70,7 @@ export function AppShell() {
         {view.name === 'bookmarks' && <BookmarksView />}
         {view.name === 'templates' && <TemplatesView />}
       </main>
-      <Footer />
+      
     </div>
   );
 }
