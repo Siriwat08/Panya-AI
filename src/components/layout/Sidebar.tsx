@@ -15,6 +15,9 @@ const NAV_ITEMS = [
   { view: { name: 'bookmarks' } as const, label: 'บันทึก', icon: Bookmark },
 ];
 
+// Logged-in user email (single-tenant app — could be replaced with real auth session)
+const USER_EMAIL = 'siriwat@panya-ai.co.th';
+
 export function Sidebar() {
   const { getView, navigate } = useNavigation();
   const [currentView, setCurrentView] = useState<{ name: string }>({ name: 'home' });
@@ -30,15 +33,19 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile toggle button */}
-      <button
-        type="button"
-        onClick={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 md:hidden flex h-10 w-10 items-center justify-center rounded-lg bg-card-soft border border-border/60"
-        aria-label="เปิดเมนู"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
+      {/* Mobile toggle button — fixed top-left, only on mobile.
+          When sidebar is open on mobile, this button hides so it
+          doesn't overlap with the logo inside the sidebar. */}
+      {!mobileOpen && (
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="fixed top-4 left-4 z-50 md:hidden flex h-10 w-10 items-center justify-center rounded-lg bg-card-soft border border-border/60 shadow-lg"
+          aria-label="เปิดเมนู"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      )}
 
       {/* Mobile overlay */}
       {mobileOpen && (
@@ -59,6 +66,18 @@ export function Sidebar() {
       >
         {/* Brand */}
         <div className="flex items-center gap-3 border-b border-border/40 p-5">
+          {/* Mobile close button — replaces the floating hamburger when sidebar is open */}
+          {mobileOpen && (
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              className="md:hidden -ml-2 mr-1 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/40"
+              aria-label="ปิดเมนู"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => { navigate({ name: 'home' }); setMobileOpen(false); }}
@@ -66,9 +85,9 @@ export function Sidebar() {
             aria-label="Panya-AI"
           >
             <img
-              src="/panya-mascot.png"
+              src="/panya-logo.png"
               alt="Panya-AI"
-              className="h-10 w-10 rounded-lg object-cover"
+              className="h-10 w-10 rounded-lg object-cover ring-1 ring-gold/20"
             />
             {!collapsed && (
               <div className="flex flex-col items-start leading-none">
@@ -79,11 +98,11 @@ export function Sidebar() {
               </div>
             )}
           </button>
-          {!collapsed && (
+          {!collapsed && !mobileOpen && (
             <button
               type="button"
               onClick={() => setCollapsed(true)}
-              className="ml-auto text-muted-foreground hover:text-foreground"
+              className="ml-auto hidden md:inline-flex text-muted-foreground hover:text-foreground"
               aria-label="ย่อเมนู"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -93,26 +112,13 @@ export function Sidebar() {
             <button
               type="button"
               onClick={() => setCollapsed(false)}
-              className="mx-auto text-muted-foreground hover:text-foreground"
+              className="mx-auto hidden md:inline-flex text-muted-foreground hover:text-foreground"
               aria-label="ขยายเมนู"
             >
               <Menu className="h-4 w-4" />
             </button>
           )}
         </div>
-
-        {/* Employer badge */}
-        {!collapsed && (
-          <div className="px-5 pt-3 pb-1">
-            <div className="flex items-center gap-2.5 rounded-lg border border-gold/30 bg-gold/10 px-3 py-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-gold shadow-[0_0_0_3px_rgba(201,169,97,0.2)]" />
-              <div className="text-xs">
-                <div className="font-semibold text-gold">โหมด: ฝั่งนายจ้าง</div>
-                <div className="text-[10px] text-muted-foreground">Employer Side</div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto p-3">
@@ -159,16 +165,18 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* User info */}
+        {/* User info — show email instead of name/role */}
         {!collapsed && (
           <div className="border-t border-border/40 p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold/70 text-sm font-bold text-navy">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold/70 text-sm font-bold text-navy flex-shrink-0">
                 ศว
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">คุณศิริวัฒน์</div>
-                <div className="text-[11px] text-muted-foreground">HR · เผ่าปัญญา ทรานสปอร์ต</div>
+                <div className="text-[11px] text-muted-foreground uppercase tracking-wider">อีเมลผู้ใช้</div>
+                <div className="truncate text-xs font-medium text-foreground/90" title={USER_EMAIL}>
+                  {USER_EMAIL}
+                </div>
               </div>
             </div>
           </div>

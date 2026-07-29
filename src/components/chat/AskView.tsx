@@ -38,6 +38,7 @@ export function AskView() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [laborOnly, setLaborOnly] = useState(true);
+  const [inputFocused, setInputFocused] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -197,10 +198,16 @@ export function AskView() {
 
       {/* Input */}
       <form onSubmit={onSubmit} className="sticky bottom-4">
-        <div className="card-premium rounded-2xl p-2 flex gap-2 items-end">
+        <div
+          className={`card-premium rounded-2xl p-2 flex gap-2 items-end transition-all duration-200 ${
+            inputFocused ? 'ring-2 ring-gold/40 shadow-lg' : ''
+          }`}
+        >
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -208,8 +215,10 @@ export function AskView() {
               }
             }}
             placeholder="ถามคำถามกฎหมาย… (Enter เพื่อส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
-            rows={1}
-            className="flex-1 bg-transparent resize-none outline-none text-sm px-3 py-2 max-h-32"
+            rows={inputFocused ? 4 : 1}
+            className={`flex-1 bg-transparent resize-none outline-none text-sm px-3 py-2 max-h-48 transition-all duration-200 ${
+              inputFocused ? 'min-h-[120px]' : 'min-h-[40px]'
+            }`}
             disabled={loading}
           />
           <Button

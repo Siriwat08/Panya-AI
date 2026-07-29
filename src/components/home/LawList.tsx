@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, ChevronRight, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Badge } from '@/components/ui/badge';
 import type { LawSummary } from '@/lib/types';
@@ -22,6 +22,7 @@ const CATEGORY_LABEL: Record<string, { th: string; en: string }> = {
 export function LawList({ laws }: { laws: LawSummary[] }) {
   const { navigate } = useNavigation();
   const [filter, setFilter] = useState<string>('all');
+  const [expanded, setExpanded] = useState(false);
 
   // Group by category
   const grouped: Record<string, LawSummary[]> = {};
@@ -33,6 +34,7 @@ export function LawList({ laws }: { laws: LawSummary[] }) {
 
   const visibleLaws = filter === 'all' ? laws : (grouped[filter] || []);
   const categories = ['all', ...Object.keys(grouped)];
+  const totalLaws = laws.length;
 
   return (
     <section className="mx-auto max-w-7xl px-4 sm:px-6 py-10">
@@ -42,12 +44,43 @@ export function LawList({ laws }: { laws: LawSummary[] }) {
             กฎหมายในระบบ
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            คลิกที่กฎหมายเพื่อดูมาตราทั้งหมด
+            รวมทั้งหมด {totalLaws} ฉบับ — คลิก &quot;ดูทั้งหมด&quot; เพื่อแสดงรายการ หรือเลือกหมวดเพื่อกรอง
           </p>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+
+        {/* Expand / collapse toggle — primary action */}
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition border ${
+            expanded
+              ? 'bg-card-soft text-muted-foreground border-border/60 hover:text-foreground hover:border-gold/30'
+              : 'bg-gold text-navy border-gold hover:bg-gold/90 shadow-md'
+          }`}
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="h-4 w-4" />
+              ย่อรายการ
+            </>
+          ) : (
+            <>
+              <BookOpen className="h-4 w-4" />
+              ดูทั้งหมด {totalLaws} ฉบับ
+              <ChevronDown className="h-4 w-4" />
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Filter chips — always visible so user can pre-select a category */}
+      {expanded && (
+        <div className="mb-5 flex flex-wrap gap-1.5">
           {categories.map(c => (
-            <button type="button" onClick={() => setFilter(c)}
+            <button
+              type="button"
+              key={c}
+              onClick={() => setFilter(c)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition border ${
                 filter === c
                   ? 'bg-gold text-navy border-gold'
@@ -55,16 +88,52 @@ export function LawList({ laws }: { laws: LawSummary[] }) {
               }`}
             >
               {c === 'all' ? 'ทั้งหมด' : (CATEGORY_LABEL[c]?.th || c)}
+              <span className="ml-1.5 opacity-60">
+                {c === 'all' ? totalLaws : (grouped[c]?.length || 0)}
+              </span>
             </button>
           ))}
         </div>
-      </div>
+      )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {visibleLaws.map(law => (
-          <LawCard key={law.lawId} law={law} onClick={() => navigate({ name: 'law', lawId: law.lawId })} />
-        ))}
-      </div>
+      {/* Laws grid — only render when expanded */}
+      {expanded ? (
+        visibleLaws.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleLaws.map(law => (
+              <LawCard key={law.lawId} law={law} onClick={() => navigate({ name: 'law', lawId: law.lawId })} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10 text-sm text-muted-foreground">
+            ไม่มีกฎหมายในหมวดนี้
+          </div>
+        )
+      ) : (
+        /* Collapsed teaser — show category counts only */
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Object.entries(grouped).map(([cat, items]) => {
+            const label = CATEGORY_LABEL[cat]?.th || cat;
+            return (
+              <button
+                type="button"
+                key={cat}
+                onClick={() => { setFilter(cat); setExpanded(true); }}
+                className="card-premium rounded-xl p-4 text-left hover:border-gold/40 transition group"
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm font-semibold text-foreground group-hover:text-gold transition">{label}</span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-gold group-hover:translate-x-1 transition" />
+                </div>
+                <div className="text-2xl font-bold text-gradient-gold tabular-nums">
+                  {items.length}
+                  <span className="text-xs font-normal text-muted-foreground ml-1">ฉบับ</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
@@ -72,7 +141,7 @@ export function LawList({ laws }: { laws: LawSummary[] }) {
 function LawCard({ law, onClick }: { law: LawSummary; onClick: () => void }) {
   const cat = CATEGORY_LABEL[law.category || 'other'] || { th: law.category, en: '' };
   return (
-    <button type="button" onClick={onClick}>
+    <button type="button" onClick={onClick} className="card-premium rounded-xl p-4 text-left hover:border-gold/40 transition group w-full">
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex flex-wrap gap-1.5">
           {law.isLaborLaw === 1 && (
