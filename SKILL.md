@@ -1219,3 +1219,98 @@ Panya-AI รองรับการส่ง contract template เป็น PDF
 
 *Last updated: 2026-07-28*
 *Database: 78 laws · 8,507 sections · 514 judgments · 615 regulations (103 active) · 63 templates · 9,699 RAG chunks*
+
+---
+
+## Section 22: Legal Strategist AI Prompt (Phase 1 — Active) ⭐⭐⭐⭐⭐
+
+### 22.1 Prompt Location
+- **File:** `src/app/api/ask/route.ts` → `SYSTEM_PROMPT` constant
+- **LLM Provider:** OpenRouter — `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`
+- **Response time:** 2-8 วินาที (ไม่เกิน Vercel 60s timeout)
+
+### 22.2 Prompt Structure
+AI prompt แบ่งเป็น 6 ส่วนหลัก:
+
+1. **Role Description** — Legal Strategist & Labor Law Expert ประจำ หจก.เผ่าปัญญา ทรานสปอร์ต
+2. **Knowledge Base & Legal Framework** — อ้างอิง พ.ร.บ.คุ้มครองแรงงาน, ป.พ.พ., PDPA, แรงงานสัมพันธ์, จป.
+3. **Database Context** — บอก AI ว่ามีข้อมูลอะไรในฐานข้อมูล:
+   - 78 กฎหมาย · 8,507 มาตรา
+   - 514 ฎีกาแรงงาน
+   - 615 อนุบัญญัติ (103 active, 512 repealed)
+   - 63 เทมเพลตเอกสาร (F1-F65)
+4. **Template Reference** — บอก AI ว่าเทมเพลตไหนใช้เมื่อไหร่ (F1-F23 หลัก)
+5. **Risk Matrix 5×5** — Severity × Likelihood = Risk Score (1-25)
+6. **Core Responsibilities** — Contract Strategy, Discipline & Termination, PDPA & Monitoring
+
+### 22.3 Output Structure (4 ส่วน)
+ทุกคำตอบต้องมี:
+1. **บทวิเคราะห์ทางกฎหมาย** — อ้างอิงมาตรา [N]
+2. **คำแนะนำเชิงกลยุทธ์** — สิ่งที่บริษัทควรทำทันที
+3. **ร่างเอกสาร/คำพูด** — ตัวอย่างข้อความ (ถ้ามี)
+4. **จุดเสี่ยงที่ต้องระวัง** — ⚠️ RISK ALERT + Risk Score
+
+### 22.4 Key Differentiators (ที่ทำให้ AI ตอบถูกต้อง)
+
+#### รถร่วม vs พนักงานประจำ (Critical!)
+AI แยกแยะได้ถูกต้อง:
+- **รถร่วม = จ้างทำของ (ม.587)** — ใช้ "ค่าบริการเหมาจ่าย" ไม่ใช่ "เงินเดือน"
+- **พนักงานประจำ = จ้างแรงงาน (ม.575)** — มี "อำนาจบังคับบัญชา"
+
+#### กลยุทธ์เฉพาะขนส่ง:
+- ใช้ "Service Window" แทน "เวลาเข้างาน"
+- ใช้ "ปรับลดค่าบริการ" แทน "ลงโทษทางวินัย"
+- ผลักภาระเงื่อนไขไปยังลูกค้า (Big C) ไม่ใช่บริษัท
+
+#### การเลิกจ้าง (Zero Tolerance):
+- ทุจริต (ขโมยน้ำมัน, บิลผี) → เลิกจ้าง ไม่จ่ายค่าชดเชย (ม.119)
+- ต้องมี F5→F6→F7 ก่อน F8 เสมอ
+- F9 ต้องจ่าย ณ วันเลิกจ้าง (เลย = ดอกเบี้ย 15%/ปี)
+
+### 22.5 Template Reference (ใน Prompt)
+AI รู้จักเทมเพลตหลักและแนะนำได้:
+
+| Template | ใช้เมื่อ | กฎหมาย |
+|----------|---------|--------|
+| F1 สัญญาจ้างงาน | จ้างใหม่ | ม.11-13 พ.ร.บ.คุ้มครองแรงงาน |
+| F2 สัญญาทดลองงาน | จ้างใหม่ | ห้ามเกิน 119 วัน (ม.10) |
+| F3 ข้อบังคับการทำงาน | พนักงาน ≥10 คน | ยื่น สนร. ภายใน 15 วัน |
+| F4 ระเบียบวินัย | ทุกบริษัท | ฐานในการเลิกจ้าง |
+| F5/F6/F7 หนังสือเตือน | ก่อนเลิกจ้าง | ม.119(4) |
+| F8 บอกเลิกสัญญา | เลิกจ้าง | แจ้งล่วงหน้า 1 จ่าย |
+| F9 จ่ายค่าชดเชย | เลิกจ้าง | ม.118 — จ่าย ณ วันเลิกจ้าง |
+| F14 NDA | ปกป้องข้อมูล | พ.ร.บ.ความลับทางการค้า |
+| F15 Non-Compete | ผู้บริหาร | ห้ามเกิน 5 ปี |
+| F20 แจ้งลดค่าจ้าง | ลดเงินเดือน | ม.71 — ต้องมีความยินยอม |
+| F22 แจ้งพักงาน | สอบสวน | จ่าย 50% ค่าจ้าง |
+
+### 22.6 การเรียกใช้งาน
+```
+POST /api/ask
+Content-Type: application/json
+
+{
+  "question": "ลูกจ้างขาดงาน 3 วันติดต่อกัน เลิกจ้างได้ไหม",
+  "laborOnly": true,
+  "history": []  // optional: ประวัติแชท
+}
+```
+
+Response:
+```json
+{
+  "answer": "1. บทวิเคราะห์ทางกฎหมาย... [1]\n2. คำแนะนำ... แนะนำ F8...\n3. ร่างเอกสาร... \n4. ⚠️ RISK ALERT...",
+  "citations": [{ "index": 1, "type": "section", "label": "มาตรา 119(5)", ... }],
+  "retrievedChunks": 10
+}
+```
+
+### 22.7 ข้อจำกัดปัจจุบัน
+- NVIDIA Nemotron 3 Nano อาจมีคำอังกฤษผสมในคำตอบบางครั้ง (ใช้ model เล็กเพื่อความเร็ว)
+- ไม่สามารถอ้างอิงอนุบัญญัติฉบับเต็มได้ (มีแค่ใน RAG chunks)
+- ไม่สามารถสร้าง PDF ได้โดยตรง (ต้องใช้ /api/templates/pdf endpoint แยก)
+
+---
+
+*Last updated: 2026-07-29*
+*Phase 1: AI Prompt + SKILL.md — COMPLETED*
