@@ -121,7 +121,7 @@ export function AskView() {
 
       {/* Labor-only toggle */}
       <div className="mb-4 flex items-center gap-2 text-xs">
-        <button type="button" onClick setLaborOnly(v => !v)}
+        <button type="button" onClick={() => setLaborOnly(v => !v)}
           className={`px-3 py-1.5 rounded-full font-medium transition border ${
             laborOnly
               ? 'bg-gold/15 text-gold border-gold/30'
@@ -146,7 +146,7 @@ export function AskView() {
             </p>
             <div className="grid gap-2 text-left">
               {SAMPLE_QUESTIONS.map((q, i) => (
-                <button type="button" onClick ask(q)}
+                <button type="button" onClick={() => ask(q)}
                   className="px-4 py-2.5 rounded-lg bg-card-softer border border-border/40 hover:border-gold/30 hover:bg-accent/30 transition text-sm text-foreground/90"
                 >
                   <span className="text-gold mr-2">›</span>
@@ -259,7 +259,7 @@ function MessageBubble({
             </div>
             <div className="grid gap-1.5">
               {msg.citations.map(c => (
-                <button type="button" onClick onCitationClick(c.url)}
+                <button type="button" onClick={() => onCitationClick(c.url)}
                   className="flex items-start gap-2 text-left p-2 rounded-lg bg-card-softer hover:bg-accent/30 border border-border/30 hover:border-gold/30 transition group"
                 >
                   <Badge variant="outline" className="badge-gold text-[10px] flex-shrink-0">

@@ -84,7 +84,7 @@ export function BookmarksView() {
                   )}
                 </div>
               </div>
-              <button type="button" onClick handleNavigate(item)}
+              <button type="button" onClick={() => handleNavigate(item)}
                 className="flex-1 text-left group min-w-0"
               >
                 <div className="flex items-center gap-2 mb-1">

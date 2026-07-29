@@ -33,7 +33,7 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         {/* Logo */}
-        <button type="button" onClick navigate({ name: 'home' })}
+        <button type="button" onClick={() => navigate({ name: 'home' })}
           className="flex items-center gap-2.5 group"
           aria-label="Panya-AI"
         >

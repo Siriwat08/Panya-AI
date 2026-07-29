@@ -47,7 +47,7 @@ export function LawList({ laws }: { laws: LawSummary[] }) {
         </div>
         <div className="flex flex-wrap gap-1.5">
           {categories.map(c => (
-            <button type="button" onClick setFilter(c)}
+            <button type="button" onClick={() => setFilter(c)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition border ${
                 filter === c
                   ? 'bg-gold text-navy border-gold'
@@ -72,7 +72,7 @@ export function LawList({ laws }: { laws: LawSummary[] }) {
 function LawCard({ law, onClick }: { law: LawSummary; onClick: () => void }) {
   const cat = CATEGORY_LABEL[law.category || 'other'] || { th: law.category, en: '' };
   return (
-    <button type="button" onClick
+    <button type="button" onClick={onClick}>
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex flex-wrap gap-1.5">
           {law.isLaborLaw === 1 && (

@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
           <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginTop: '10px', fontSize: '12px', color: '#666' }}>
             {this.state.error?.stack?.slice(0, 1000)}
           </pre>
-          <button type="button" onClick this.setState({ hasError: false, error: null })}
+          <button type="button" onClick={() => this.setState({ hasError: false, error: null })}
             style={{ marginTop: '10px', padding: '5px 15px', cursor: 'pointer' }}
           >
             ลองใหม่
