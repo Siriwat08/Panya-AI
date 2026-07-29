@@ -55,7 +55,7 @@ export function LawsView() {
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-6">
-        <button$1 type="button"> setFilter('all')}
+        <button type="button" onClick setFilter('all')}
           className={`px-3 py-1 rounded-full text-xs font-medium transition border ${
             filter === 'all'
               ? 'bg-gold text-navy border-gold'
@@ -65,7 +65,7 @@ export function LawsView() {
           ทั้งหมด
         </button>
         {categories.map(c => (
-          <button$1 type="button"> setFilter(c)}
+          <button type="button" onClick setFilter(c)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition border ${
               filter === c
                 ? 'bg-gold text-navy border-gold'
@@ -82,7 +82,7 @@ export function LawsView() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map(law => (
-            <button$1 type="button"> navigate({ name: 'law', lawId: law.lawId })}
+            <button type="button" onClick navigate({ name: 'law', lawId: law.lawId })}
               className="card-premium rounded-xl p-5 text-left group cursor-pointer"
             >
               <div className="flex items-start justify-between gap-2 mb-3">

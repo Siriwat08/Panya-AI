@@ -139,7 +139,7 @@ export function SearchView({ initialQ, initialType }: { initialQ?: string; initi
           { v: 'judgments', label: 'คำพิพากษา' },
           { v: 'laws', label: 'ชื่อกฎหมาย' },
         ] as Array<{ v: SearchType; label: string }>).map(opt => (
-          <button$1 type="button"> {
+          <button type="button" onClick {
               setType(opt.v);
               if (q.trim()) runSearch(q, opt.v);
             }}
@@ -165,7 +165,7 @@ export function SearchView({ initialQ, initialType }: { initialQ?: string; initi
           {results.laws.length > 0 && (
             <ResultGroup title="กฎหมาย" icon={BookOpen} count={results.laws.length}>
               {results.laws.map(law => (
-                <button$1 type="button"> navigate({ name: 'law', lawId: law.id })}
+                <button type="button" onClick navigate({ name: 'law', lawId: law.id })}
                   className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
@@ -187,7 +187,7 @@ export function SearchView({ initialQ, initialType }: { initialQ?: string; initi
           {results.sections.length > 0 && (
             <ResultGroup title="มาตรากฎหมาย" icon={BookOpen} count={results.sections.length}>
               {results.sections.map(s => (
-                <button$1 type="button"> navigate({ name: 'section', sectionId: s.id })}
+                <button type="button" onClick navigate({ name: 'section', sectionId: s.id })}
                   className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
                 >
                   <div className="flex items-start gap-3">
@@ -220,7 +220,7 @@ export function SearchView({ initialQ, initialType }: { initialQ?: string; initi
           {results.judgments.length > 0 && (
             <ResultGroup title="คำพิพากษาฎีกา" icon={Scale} count={results.judgments.length}>
               {results.judgments.map(j => (
-                <button$1 type="button"> navigate({ name: 'judgment', judgmentId: j.id })}
+                <button type="button" onClick navigate({ name: 'judgment', judgmentId: j.id })}
                   className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">

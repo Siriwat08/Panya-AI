@@ -175,7 +175,7 @@ function SectionCard({
 }) {
   const { navigate } = useNavigation();
   return (
-    <button$1 type="button"> navigate({ name: 'section', sectionId: section.sectionId })}
+    <button type="button" onClick navigate({ name: 'section', sectionId: section.sectionId })}
       className="card-premium rounded-xl p-5 w-full text-left group cursor-pointer"
     >
       <div className="flex items-start gap-4">
