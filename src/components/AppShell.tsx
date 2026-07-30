@@ -12,6 +12,9 @@ import { SearchView } from '@/components/search/SearchView';
 import { AskView } from '@/components/chat/AskView';
 import { BookmarksView } from '@/components/common/BookmarksView';
 import { TemplatesView } from '@/components/templates/TemplatesView';
+import { PdfBuilderView } from '@/components/pdf/PdfBuilderView';
+import { RiskMatrixView } from '@/components/risk/RiskMatrixView';
+import { ContractAnalysisView } from '@/components/contract/ContractAnalysisView';
 import type { View } from '@/lib/types';
 
 function parseView(): View {
@@ -32,6 +35,9 @@ function parseView(): View {
     case 'bookmarks': return { name: 'bookmarks' };
     case 'templates': return { name: 'templates' };
     case 'ask': return { name: 'ask' };
+    case 'pdf-builder': return { name: 'pdf-builder', templateId: id ? Number.parseInt(id, 10) : undefined };
+    case 'risk-matrix': return { name: 'risk-matrix' };
+    case 'contract-analysis': return { name: 'contract-analysis' };
     default: return { name: 'home' };
   }
 }
@@ -67,6 +73,9 @@ export function AppShell() {
           <SearchView initialQ={view.q} initialType={view.type as any} />
         )}
         {view.name === 'ask' && <AskView />}
+        {view.name === 'pdf-builder' && <PdfBuilderView initialTemplateId={view.templateId} />}
+        {view.name === 'risk-matrix' && <RiskMatrixView />}
+        {view.name === 'contract-analysis' && <ContractAnalysisView />}
         {view.name === 'bookmarks' && <BookmarksView />}
         {view.name === 'templates' && <TemplatesView />}
       </main>
