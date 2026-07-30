@@ -53,10 +53,30 @@ export function AskView() {
   const [activeStepIdx, setActiveStepIdx] = useState(-1);
   const [openCitation, setOpenCitation] = useState<Citation | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastAiMsgRef = useRef<HTMLDivElement>(null);
+  const prevLoadingRef = useRef(false);
   const stepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Smart scroll: when user sends → scroll to bottom (show loading);
+  // when AI responds → scroll to TOP of AI message (so user reads from beginning, not end)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const lastMsg = messages[messages.length - 1];
+    const wasLoading = prevLoadingRef.current;
+
+    if (loading) {
+      // Loading started — scroll to bottom to show AgentRunning animation
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else if (wasLoading && lastMsg?.role === 'assistant') {
+      // AI just responded — scroll to TOP of AI message so user reads from start
+      setTimeout(() => {
+        lastAiMsgRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    } else if (lastMsg?.role === 'user') {
+      // User sent message — scroll to bottom
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    prevLoadingRef.current = loading;
   }, [messages, loading]);
 
   // Animate agent steps while loading
@@ -158,7 +178,7 @@ export function AskView() {
   return (
     <div className="flex h-screen overflow-hidden">
       {/* MAIN chat column */}
-      <div className={`flex flex-col bg-background transition-all duration-300 ${openCitation ? 'flex-1' : 'flex-1'}`}>
+      <div className="flex flex-col bg-background transition-all duration-300 flex-1">
         {/* Header */}
         <div className="border-b border-border/60 bg-card-soft/30 px-6 py-4 flex items-center justify-between">
           <div>
@@ -212,7 +232,7 @@ export function AskView() {
             <div className="max-w-2xl mx-auto">
               <div className="card-premium rounded-2xl p-8 text-center">
                 <div className="flex justify-center mb-4">
-                  <img src="/panya-logo.png" alt="Panya-AI" className="h-16 w-16 rounded-lg object-cover ring-1 ring-gold/20" />
+                  <img src="/mascot/mascot-front.png" alt="Panya-AI" className="h-16 w-16 rounded-lg object-contain ring-1 ring-gold/20 bg-navy/5" />
                 </div>
                 <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
                   สวัสดีครับ ผมปัญญา
@@ -238,9 +258,14 @@ export function AskView() {
           )}
 
           <div className="max-w-3xl mx-auto space-y-4">
-            {messages.map((msg) => (
-              <MessageBubble key={msg.uid} msg={msg} onCitationClick={handleCitationClick} onOpenCitation={setOpenCitation} />
-            ))}
+            {messages.map((msg, i) => {
+              const isLastAi = i === messages.length - 1 && msg.role === 'assistant';
+              return (
+                <div key={msg.uid} ref={isLastAi ? lastAiMsgRef : undefined}>
+                  <MessageBubble msg={msg} onCitationClick={handleCitationClick} onOpenCitation={setOpenCitation} />
+                </div>
+              );
+            })}
 
             {loading && <AgentRunning idx={activeStepIdx} />}
 
@@ -354,7 +379,7 @@ function MessageBubble({
       <div className={`max-w-[85%] ${isUser ? '' : 'w-full'}`}>
         {!isUser && (
           <div className="flex items-center gap-2 mb-1.5">
-            <img src="/panya-logo.png" alt="Panya-AI" className="h-6 w-6 rounded object-cover" />
+            <img src="/mascot/mascot-front.png" alt="Panya-AI" className="h-6 w-6 rounded object-contain" />
             <span className="text-xs font-semibold text-foreground">Panya-AI</span>
             {msg.retrievedChunks !== undefined && (
               <span className="text-[10px] text-gold">· วิเคราะห์เสร็จ · {msg.retrievedChunks} แหล่งอ้างอิง</span>
@@ -421,7 +446,7 @@ function AgentRunning({ idx }: { readonly idx: number }) {
     <div className="flex justify-start">
       <div className="w-full max-w-2xl">
         <div className="flex items-center gap-2 mb-1.5">
-          <img src="/panya-logo.png" alt="Panya-AI" className="h-6 w-6 rounded object-cover" />
+          <img src="/mascot/mascot-front.png" alt="Panya-AI" className="h-6 w-6 rounded object-contain" />
           <span className="text-xs font-semibold text-foreground">Panya-AI</span>
           <span className="text-[10px] text-gold">· กำลังวิเคราะห์...</span>
         </div>

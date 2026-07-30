@@ -149,7 +149,7 @@ function LiveChatDemo({ typedQ, onAskClick }: { readonly typedQ: string; readonl
         {/* Header */}
         <div className="px-4 py-3 border-b border-gold/15 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/panya-logo.png" alt="Panya-AI" className="h-6 w-6 rounded object-cover" />
+            <img src="/mascot/mascot-front.png" alt="Panya-AI" className="h-6 w-6 rounded object-contain" />
             <span className="text-xs font-semibold text-gold">Panya-AI</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">
               ● พร้อมตอบ
