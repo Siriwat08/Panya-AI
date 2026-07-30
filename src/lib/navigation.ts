@@ -23,8 +23,11 @@ export function useNavigation() {
       case 'judgment': return { name: 'judgment', judgmentId: id ? Number.parseInt(id, 10) : 0 };
       case 'search': return { name: 'search', q: q || undefined, type: type || 'all' };
       case 'bookmarks': return { name: 'bookmarks' };
-    case 'templates': return { name: 'templates' };
+      case 'templates': return { name: 'templates' };
       case 'ask': return { name: 'ask' };
+      case 'pdf-builder': return { name: 'pdf-builder', templateId: id ? Number.parseInt(id, 10) : undefined };
+      case 'risk-matrix': return { name: 'risk-matrix' };
+      case 'contract-analysis': return { name: 'contract-analysis' };
       default: return { name: 'home' };
     }
   }, []);
@@ -46,6 +49,12 @@ export function useNavigation() {
       case 'bookmarks': params.set('view', 'bookmarks'); break;
       case 'templates': params.set('view', 'templates'); break;
       case 'ask': params.set('view', 'ask'); break;
+      case 'pdf-builder':
+        params.set('view', 'pdf-builder');
+        if (view.templateId) params.set('id', String(view.templateId));
+        break;
+      case 'risk-matrix': params.set('view', 'risk-matrix'); break;
+      case 'contract-analysis': params.set('view', 'contract-analysis'); break;
     }
     const qs = params.toString();
     const newUrl = qs ? `/?${qs}` : '/';

@@ -23,7 +23,11 @@ export type View =
   | { name: 'judgment'; judgmentId: number }
   | { name: 'search'; q?: string; type?: 'all' | 'sections' | 'judgments' | 'laws' }
   | { name: 'bookmarks' }
-  | { name: 'ask' };
+  | { name: 'templates' }
+  | { name: 'ask' }
+  | { name: 'pdf-builder'; templateId?: number }
+  | { name: 'risk-matrix' }
+  | { name: 'contract-analysis' };
 
 export interface LawSummary {
   lawId: number;
