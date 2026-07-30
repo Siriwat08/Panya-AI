@@ -57,6 +57,38 @@ export function AskView() {
   const prevLoadingRef = useRef(false);
   const stepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // === MASCOT FEATURES ===
+  // 1. Easter egg: 3 clicks on mascot → back view + funny message (4s)
+  const [mascotClicks, setMascotClicks] = useState(0);
+  const [showEasterEgg, setShowEasterEgg] = useState(false);
+  const easterEggTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // 2. Thinking mascot: cycle front/left/right during loading
+  const [thinkingIdx, setThinkingIdx] = useState(0);
+  const thinkingImgs = ['/mascot/mascot-front.png', '/mascot/mascot-left.png', '/mascot/mascot-right.png'];
+  // 3. Direction-aware: front by default, right when citation panel open, back on easter egg
+  const mascotSrc = showEasterEgg
+    ? '/mascot/mascot-back.png'
+    : loading
+    ? thinkingImgs[thinkingIdx % 3]
+    : openCitation
+    ? '/mascot/mascot-right.png'
+    : '/mascot/mascot-front.png';
+
+  const handleMascotClick = () => {
+    const n = mascotClicks + 1;
+    setMascotClicks(n);
+    if (n >= 3) {
+      setShowEasterEgg(true);
+      setMascotClicks(0);
+      if (easterEggTimerRef.current) clearTimeout(easterEggTimerRef.current);
+      easterEggTimerRef.current = setTimeout(() => setShowEasterEgg(false), 4000);
+    } else {
+      if (easterEggTimerRef.current) clearTimeout(easterEggTimerRef.current);
+      easterEggTimerRef.current = setTimeout(() => setMascotClicks(0), 1500);
+    }
+  };
+  // === END MASCOT ===
+
   // Smart scroll: when user sends → scroll to bottom (show loading);
   // when AI responds → scroll to TOP of AI message (so user reads from beginning, not end)
   useEffect(() => {
@@ -84,8 +116,11 @@ export function AskView() {
     if (loading) {
       setActiveStepIdx(0);
       let i = 0;
+      let mi = 0;
       stepTimerRef.current = setInterval(() => {
         i++;
+        mi++;
+        setThinkingIdx(mi);
         if (i >= AGENT_STEPS.length) {
           // Hold on last step until response arrives
           setActiveStepIdx(AGENT_STEPS.length - 1);
@@ -232,7 +267,12 @@ export function AskView() {
             <div className="max-w-2xl mx-auto">
               <div className="card-premium rounded-2xl p-8 text-center">
                 <div className="flex justify-center mb-4">
-                  <img src="/mascot/mascot-front.png" alt="Panya-AI" className="h-16 w-16 rounded-lg object-contain ring-1 ring-gold/20 bg-navy/5" />
+                  <button type="button" onClick={handleMascotClick} className="relative">
+                    <img src={mascotSrc} alt="Panya-AI" className="h-16 w-16 rounded-lg object-contain ring-1 ring-gold/20 bg-navy/5 transition-all duration-300" />
+                    {showEasterEgg && (
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-gold bg-navy/90 px-3 py-1 rounded-full">🤖 อ้อ! จับได้แล้วเหรอ?</div>
+                    )}
+                  </button>
                 </div>
                 <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
                   สวัสดีครับ ผมปัญญา
@@ -267,7 +307,7 @@ export function AskView() {
               );
             })}
 
-            {loading && <AgentRunning idx={activeStepIdx} />}
+            {loading && <AgentRunning idx={activeStepIdx} mascotSrc={mascotSrc} />}
 
             <div ref={messagesEndRef} />
           </div>
@@ -379,7 +419,9 @@ function MessageBubble({
       <div className={`max-w-[85%] ${isUser ? '' : 'w-full'}`}>
         {!isUser && (
           <div className="flex items-center gap-2 mb-1.5">
-            <img src="/mascot/mascot-front.png" alt="Panya-AI" className="h-6 w-6 rounded object-contain" />
+            <button type="button" onClick={handleMascotClick} className="flex-shrink-0">
+              <img src={mascotSrc} alt="Panya-AI" className="h-6 w-6 rounded object-contain transition-all duration-300" />
+            </button>
             <span className="text-xs font-semibold text-foreground">Panya-AI</span>
             {msg.retrievedChunks !== undefined && (
               <span className="text-[10px] text-gold">· วิเคราะห์เสร็จ · {msg.retrievedChunks} แหล่งอ้างอิง</span>
@@ -441,12 +483,12 @@ function MessageBubble({
 }
 
 /* ---------- Agent Running Animation ---------- */
-function AgentRunning({ idx }: { readonly idx: number }) {
+function AgentRunning({ idx, mascotSrc }: { readonly idx: number; readonly mascotSrc: string }) {
   return (
     <div className="flex justify-start">
       <div className="w-full max-w-2xl">
         <div className="flex items-center gap-2 mb-1.5">
-          <img src="/mascot/mascot-front.png" alt="Panya-AI" className="h-6 w-6 rounded object-contain" />
+          <img src={mascotSrc} alt="Panya-AI" className="h-6 w-6 rounded object-contain transition-all duration-300" />
           <span className="text-xs font-semibold text-foreground">Panya-AI</span>
           <span className="text-[10px] text-gold">· กำลังวิเคราะห์...</span>
         </div>

@@ -47,10 +47,18 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
   return (
     <>
       <section className="relative overflow-hidden">
-        {/* Decorative glow */}
-        <div className="absolute inset-0 -z-10">
+        {/* Decorative glow + floating mascot */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gold/10 rounded-full blur-[120px]" />
           <div className="absolute top-20 right-10 w-[300px] h-[300px] bg-primary/5 rounded-full blur-[100px]" />
+          {/* Floating mascot — large, semi-transparent */}
+          <img
+            src="/mascot/mascot-front.png"
+            alt=""
+            aria-hidden="true"
+            className="absolute right-4 bottom-0 w-64 h-64 object-contain opacity-[0.06] pointer-events-none hidden lg:block"
+            style={{ animation: 'floatMascot 5s ease-in-out infinite' }}
+          />
         </div>
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-16 pb-12 sm:pt-20 sm:pb-16">
@@ -223,6 +231,7 @@ function LiveChatDemo({ typedQ, onAskClick }: { readonly typedQ: string; readonl
       <style>{`
         @keyframes blink { 50% { opacity: 0; } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes floatMascot { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
       `}</style>
 
       {/* CTA below demo */}

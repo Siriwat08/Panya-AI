@@ -1,280 +1,167 @@
-# 🇹🇭 Panya-AI — ฐานข้อมูลกฎหมายไทย + AI ตรวจสัญญา
+# 🇹🇭 Panya-AI — Thai Legal AI for Employers
 
-> เว็บแอปฐานข้อมูลกฎหมายไทย พร้อม AI RAG ถาม-ตอบพร้อมอ้างอิงมาตรา/ฎีกา
-> ออกแบบมาเพื่อการตรวจสอบสัญญา ประเมินความเสี่ยงทางกฎหมาย และค้นหาข้อมูลกฎหมาย
+> ฐานข้อมูลกฎหมายไทย + AI ตรวจสัญญา ประเมินความเสี่ยง และสร้างเอกสาร
+> ออกแบบมาเพื่อฝั่งนายจ้าง / HR / In-house Legal — citation-first workflow
 
-🔗 **Live demo:** (deploy บน Vercel ตามคู่มือใน [DEPLOYMENT.md](./DEPLOYMENT.md))
+🔗 **Live:** Vercel deploy (auto from main branch)
+🗄️ **Database:** Turso (libSQL) — 78 laws · 12,936 sections · 502 judgments · 615 regulations · 63 templates
+🤖 **AI:** OpenRouter Ling-3.0-flash (excellent Thai, ~30s response)
 
 ---
 
 ## ✨ Features
 
-### 📊 Dashboard สถิติ
-- กฎหมาย 14 ฉบับ · 4,441 มาตรา · 1,258 คำพิพากษาฎีกา
-- มาตราแรงงานที่ tagged 797 มาตรา
-- ค้นหา/กรองตามหมวดกฎหมาย
+### 🤖 AI Chat (3-column layout)
+- **3-column layout:** Chat / Agent Workflow / Citation Drawer
+- **Agent workflow animation:** 5 steps (understand → search laws → search judgments → risk assess → compose)
+- **Citation pills:** Click [1] [2] [3] → citation drawer slides in with full text
+- **Smart scroll:** Scrolls to top of AI response (not bottom)
+- **Mascot features:**
+  - 🔄 Direction-aware: mascot turns right when citation panel opens
+  - 🧠 Thinking animation: cycles front/left/right during AI processing
+  - 🥚 Easter egg: click mascot 3x → turns around with funny message
+  - 🫧 Floating mascot in Hero background
 
-### 🔍 Search (FTS5 + LIKE fallback)
-- ค้นหาในมาตรากฎหมาย 4,441 มาตรา
-- ค้นหาในคำพิพากษาฎีกา 1,258 เรื่อง
-- ค้นหาตามชื่อกฎหมาย
-- Highlight คำค้นในผลลัพธ์
-- รองรับภาษาไทย (FTS5 + LIKE fallback สำหรับคำไทยที่ไม่มี word boundary)
+### 📄 PDF Document Builder (4-step wizard)
+1. **เลือกเทมเพลต** — 63 templates with category filter
+2. **กรอกข้อมูล** — Company, employee, signer details
+3. **ตรวจดู** — Preview before download
+4. **ดาวน์โหลด** — PDF via `/api/templates/pdf`
 
-### 📜 Law Detail
-- ดูมาตราทั้งหมดของแต่ละกฎหมาย
-- ค้นหาในมาตราของกฎหมายนั้น
-- Filter เฉพาะมาตราแรงงาน
-- ลิงก์ไปยัง law.go.th ฉบับเต็ม
+### 📊 Risk Matrix (5×5)
+- Likelihood × Impact grid with 7 pre-loaded scenarios
+- Color-coded: green (low) → red (critical)
+- Click cell → scenario detail + law reference + "Ask AI"
 
-### ⚖️ Section Detail + ฎีกาที่เกี่ยวข้อง
-- ดูเนื้อมาตราฉบับเต็ม
-- แสดงฎีกาที่อ้างถึงมาตรานั้น (via case_law_links)
-- License note (TSCC academic use warning)
+### 🔍 Contract Analysis
+- Paste contract text → AI analyzes for labor law violations
+- Red flags with severity badges (ร้ายแรง/ปานกลาง)
+- AI summary + recommendations
+- Sample contract with 5 problematic clauses
 
-### 🏛️ Judgment Detail + Citation
-- ข้อเท็จจริง/คำพิพากษา
-- กฎหมายที่อ้างอิง (law_references)
-- มาตราที่เกี่ยวข้อง (related sections)
-- แสดงแหล่งที่มา + License warning
+### 📖 Legal Database
+- **78 laws** (labor, civil, criminal, business, other)
+- **12,936 sections** with FTS5 full-text search
+- **502 judgments** from Supreme Court (ฎีกาแรงงาน)
+- **615 regulations** (กฎกระทรวง, ประกาศ, ระเบียบ)
+- **63 contract templates** (สัญญา, หนังสือเตือน, หนังสือเลิกจ้าง, แบบสปส.)
+- **21,361 RAG chunks** for AI retrieval
+- **FTS5 indexes** (v2) — search works in Thai
 
-### 💬 AI RAG Chat (ถาม-ตอบพร้อม Citation)
-- ถามเป็นภาษาธรรมดา "นายจ้างเลิกจ้างโดยไม่เตือนล่วงหน้า ลูกจ้างมีสิทธิอะไรบ้าง?"
-- AI ตอบพร้อมอ้างอิง [1], [2], ... จากฐานข้อมูลจริง
-- Citation panel แสดงมาตรา/ฎีกาที่ใช้ (click เพื่อดูรายละเอียด)
-- โฟกัสเฉพาะกฎหมายแรงงานได้
-- ใช้ `z-ai-web-dev-sdk` LLM
-
-### 🔖 Bookmark
-- บันทึก มาตรา/ฎีกา/กฎหมายที่สนใจ
-- เก็บใน localStorage (ไม่ต้อง login)
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router) + TypeScript 5 |
-| Styling | Tailwind CSS 4 + shadcn/ui |
-| Database | SQLite (dev) / Turso libSQL (Vercel prod) |
-| ORM | Prisma 6 |
-| AI | z-ai-web-dev-sdk (Z.ai LLM) |
-| Fonts | Noto Sans Thai + Noto Serif Thai |
-| Icons | lucide-react |
-| State | React hooks + localStorage |
+### 🎨 Design
+- Navy + Gold premium theme
+- IBM Plex Sans Thai + IBM Plex Serif fonts
+- Sidebar navigation (collapsible: 264px ↔ 72px)
+- Mascot avatar (4 directions: front/back/left/right)
+- Typewriter hero with live chat demo
+- Employer-side positioning section (6 defense cards)
 
 ---
 
-## 📦 Project Structure
+## 🛠️ Tech Stack
+
+| Component | Technology |
+|---|---|
+| Framework | Next.js 16 (Turbopack) |
+| Language | TypeScript |
+| Styling | Tailwind CSS 4 |
+| Database | Turso (libSQL) via Prisma 6 |
+| AI | OpenRouter Ling-3.0-flash |
+| Search | FTS5 (SQLite full-text search) |
+| Fonts | IBM Plex Sans Thai + IBM Plex Serif |
+| Deploy | Vercel |
+| Repo | GitHub (Siriwat08/Panya-AI) |
+
+---
+
+## 📁 Project Structure
 
 ```
-panya-ai/
-├── prisma/
-│   ├── schema.prisma              # Prisma schema (SQLite)
-│   └── thai_legal_db.sqlite       # Generated DB (gitignored)
-├── scripts/
-│   ├── rebuild_legal_db.py        # Build SQLite from sources
-│   └── test-*.ts                  # Test scripts
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── stats/             # Dashboard stats
-│   │   │   ├── laws/              # Law list + detail
-│   │   │   ├── sections/          # Section detail + related judgments
-│   │   │   ├── judgments/         # Judgment list + detail
-│   │   │   ├── search/            # FTS5 + LIKE fallback
-│   │   │   └── ask/               # AI RAG chat
-│   │   ├── globals.css            # Dark premium theme
-│   │   ├── layout.tsx
-│   │   └── page.tsx               # Main SPA entry
-│   ├── components/
-│   │   ├── AppShell.tsx           # View router
-│   │   ├── layout/Header.tsx      # Sticky header + nav
-│   │   ├── home/                  # Dashboard
-│   │   ├── law/                   # Law + section views
-│   │   ├── judgment/              # Judgment views
-│   │   ├── search/                # Search view
-│   │   ├── chat/                  # AI RAG chat
-│   │   └── common/                # Bookmark, etc.
-│   └── lib/
-│       ├── db.ts                  # Prisma client
-│       ├── rag.ts                 # RAG retrieval + context builder
-│       ├── types.ts
-│       └── navigation.ts          # SPA navigation + bookmark hooks
-├── data/                          # Source data (gitignored)
-├── SKILL.md                       # Comprehensive skill documentation
-├── DEPLOYMENT.md                  # Vercel + Turso deployment guide
-├── .env.example
-└── package.json
+src/
+├── app/
+│   ├── api/          # API routes (ask, search, laws, judgments, etc.)
+│   ├── globals.css   # Design tokens + Tailwind
+│   ├── layout.tsx    # Font setup + metadata
+│   └── page.tsx      # Entry point
+├── components/
+│   ├── chat/         # AskView (3-column AI chat)
+│   ├── contract/     # ContractAnalysisView
+│   ├── home/         # Hero (typewriter) + HomeView + LawList
+│   ├── judgment/     # JudgmentsView + JudgmentView
+│   ├── law/          # LawsView + LawView + SectionView
+│   ├── layout/       # Sidebar + Header
+│   ├── pdf/          # PdfBuilderView (4-step wizard)
+│   ├── risk/         # RiskMatrixView (5×5)
+│   ├── search/       # SearchView (laws + sections + judgments + regulations + templates)
+│   ├── templates/    # TemplatesView
+│   └── ui/           # shadcn/ui components
+├── lib/
+│   ├── db.ts         # Prisma client (Turso)
+│   ├── rag.ts        # RAG retrieval (FTS5 v2)
+│   ├── navigation.ts # URL-based SPA navigation
+│   ├── types.ts      # TypeScript types
+│   └── zai-client.ts # OpenRouter LLM client
+└── public/
+    ├── mascot/       # 4 mascot images (front/back/left/right)
+    └── panya-logo.png
 ```
 
 ---
 
-## 🚀 Quickstart (Local Development)
+## 🗄️ Database Schema
 
-### Prerequisites
-- Node.js 20+ or Bun
-- Python 3.10+ (for DB rebuild script)
-- SQLite3
+- **sources** (9) — Data provenance (krisdika, PyThaiNLP, PBuakhaw, mol, moi)
+- **laws** (78) — Thai laws with category, year, full text
+- **law_sections** (12,936) — Parsed sections with Thai/Arabic numerals
+- **judgments** (502) — Supreme Court judgments with fact/issue/ruling
+- **regulations** (615) — Ministerial regulations, announcements, rules
+- **contract_templates** (63) — F1-F63 document templates
+- **rag_chunks** (21,361) — Text chunks for AI retrieval
+- **FTS5 v2** — 4 virtual tables for full-text search
 
-### 1. Clone & Install
+---
 
+## 🚀 Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed setup.
+
+### Quick Start
 ```bash
-git clone https://github.com/<your-username>/panya-ai.git
-cd panya-ai
-bun install  # or npm install
+npm install
+npx prisma generate
+npm run dev
 ```
 
-### 2. Build the Database
-
-The 22 MB SQLite database is **NOT committed** to git (too large, regenerated from sources).
-
-**Option A:** Use the included source DB (if you have it)
-```bash
-mkdir -p data
-# Place your source SQLite at data/thai_legal_db.sqlite
-# Or run the rebuild script below
+### Environment Variables
 ```
-
-**Option B:** Rebuild from sources (recommended)
-```bash
-# Install Python deps
-pip install -r scripts/requirements.txt
-
-# Run rebuild
-python scripts/rebuild_legal_db.py
-# → outputs to data/thai_legal_db.sqlite
-```
-
-The rebuild script:
-- Parses 14 Thai laws from `laws.full_text`
-- Tags 797 labor-related sections
-- Builds FTS5 indexes for full-text search
-- Builds RAG chunks (5,670 chunks)
-- Re-links case_law_links from law_references
-
-### 3. Configure Environment
-
-```bash
-cp .env.example .env
-# Edit .env with your database path + Z.AI API key
-```
-
-### 4. Setup Prisma
-
-```bash
-# Copy DB to Prisma location
-mkdir -p db
-cp data/thai_legal_db.sqlite db/custom.db
-
-# Generate Prisma client
-bun run db:generate
-```
-
-### 5. Run Dev Server
-
-```bash
-bun run dev
-# Open http://localhost:3000
+DATABASE_URL=libsql://panya-ai-siriwat08.aws-ap-northeast-1.turso.io
+TURSO_AUTH_TOKEN=<your-token>
+OPENROUTER_API_KEY=<your-key>
 ```
 
 ---
 
-## 🌐 Deploy to Vercel
+## 📝 License & Data Sources
 
-⚠️ **SQLite files don't work on Vercel** — serverless has no persistent filesystem.
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for full Vercel + Turso migration guide.
-
-**TL;DR:**
-1. Create Turso database (free tier)
-2. Import SQLite data to Turso
-3. Switch Prisma to libsql driver
-4. Push to GitHub
-5. Import to Vercel
-6. Set env vars + deploy
+- **Laws:** สำนักงานคณะกรรมการกฤษฎีกา (Public domain)
+- **Judgments:** PBuakhaw/deka_retrival (Academic use only — NOT for commercial use)
+- **Regulations:** กระทรวงแรงงาน (Public domain)
+- **Code:** Proprietary — หจก.เผ่าปัญญา ทรานสปอร์ต
 
 ---
 
-## 📋 Available Scripts
+## 🎯 Roadmap
 
-```bash
-bun run dev          # Start dev server (port 3000)
-bun run build        # Production build
-bun run start        # Start production server
-bun run lint         # ESLint
-bun run db:generate  # Generate Prisma client
-bun run db:push      # Push schema to DB
-bun run db:migrate   # Run migrations
-```
+### Done ✅
+- Phase 1: AI Prompt + Legal Strategist system prompt
+- Phase 2: Design System + Sidebar + Logo + Fonts
+- Phase 3: AI Chat 3-column + Typewriter Hero + Employer Section
+- Phase 4: PDF Builder Wizard + Risk Matrix + Contract Analysis
 
----
-
-## 📊 Database Statistics (current)
-
-| Stat | Value |
-|------|-------|
-| กฎหมาย | 14 ฉบับ |
-| มาตราทั้งหมด | 4,441 |
-| มาตราแรงงาน (tagged) | 797 |
-| คำพิพากษาฎีกาแรงงาน | 51 |
-| คำพิพากษาฎีกาอาญา (TSCC) | 1,207 |
-| case_law_links | 26 |
-| RAG chunks | 5,670 |
-| DB size | 22 MB |
-
----
-
-## 📚 Data Sources
-
-| Source | License | Use |
-|--------|---------|-----|
-| law.go.th (กฤษฎีกา) | Public domain (gov) | Law texts |
-| PyThaiNLP/thai-law | Public domain | CCC + Penal Code CSVs |
-| deka.in.th | Verify terms | Labor judgments (login required for full text) |
-| ops.mol.go.th | Public domain (gov) | Labor judgments |
-| TSCC Dataset | **Academic use only** | Criminal judgments (RAG only, no commercial use) |
-
-See [SKILL.md](./SKILL.md) for full source list and licensing notes.
-
----
-
-## ⚠️ Disclaimer
-
-This application is for **educational purposes only**. It is not legal advice.
-
-- AI responses are generated based on database content — always verify against original sources
-- TSCC dataset judgments are for academic use only — do not use commercially
-- For real legal matters, consult a licensed Thai lawyer
-- Data accuracy depends on source freshness — verify the latest version of any law before relying on it
-
----
-
-## 🗺 Roadmap
-
-See [SKILL.md §13](./SKILL.md) for full roadmap.
-
-- ✅ Phase 1: 14 laws + 1,258 judgments + AI RAG (current)
-- 🚧 Phase 2: Add 11+ more laws (PDPA, UCTA, Trade Secrets, etc.)
-- 📋 Phase 3: Knowledge Layer (Clause Library, Checklists, Risk Matrix)
-- 🎯 Phase 4: Enterprise (Legal Knowledge Graph, Citation Graph, Industry Rules)
-- 🚀 Phase 5: Vercel + Turso production deployment
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](./LICENSE)
-
-Data sources retain their original licenses (see above). This code is MIT.
-
----
-
-## 🙏 Acknowledgments
-
-- [PyThaiNLP](https://github.com/PyThaiNLP/thai-law) for law text datasets
-- [Council of State (กฤษฎีกา)](https://law.go.th) for official law texts
-- [Supreme Court of Thailand](https://deka.supremecourt.or.th) for judgments
-- [Ministry of Labor](https://ops.mol.go.th) for labor judgments
-- [TSCC Dataset](https://github.com/KevinMercury/tscc-dataset) for criminal case research data
+### Next
+- Law status badges (ใช้บังคับ / ยกเลิก / แก้ไขล่าสุด)
+- Latest / Popular / Recommended judgments
+- Notes + highlights + export PDF
+- Persona-based onboarding (HR / Legal / Executive)
+- Contract deviation check (compare with standard template)
+- Internal company knowledge ingestion
