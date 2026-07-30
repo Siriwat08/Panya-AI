@@ -1,17 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, FileText, Menu, X, ChevronLeft } from 'lucide-react';
+import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, FileText, Menu, X, ChevronLeft, Grid3x3, FileSearch, Wand2 } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { view: { name: 'home' } as const, label: 'หน้าแรก', icon: Home },
+  { view: { name: 'ask' } as const, label: 'ถาม AI', icon: MessageSquare, badge: 'AI' },
+  { view: { name: 'pdf-builder' } as const, label: 'สร้างเอกสาร', icon: Wand2 },
+  { view: { name: 'risk-matrix' } as const, label: 'Risk Matrix', icon: Grid3x3 },
+  { view: { name: 'contract-analysis' } as const, label: 'วิเคราะห์สัญญา', icon: FileSearch },
   { view: { name: 'laws' } as const, label: 'กฎหมาย', icon: BookOpen },
   { view: { name: 'judgments' } as const, label: 'คำพิพากษา', icon: Scale },
   { view: { name: 'search' } as const, label: 'ค้นหา', icon: Search },
-  { view: { name: 'ask' } as const, label: 'ถาม AI', icon: MessageSquare, badge: 'AI' },
-  { view: { name: 'templates' } as const, label: 'เอกสาร', icon: FileText, badge: '63' },
+  { view: { name: 'templates' } as const, label: 'เทมเพลต', icon: FileText, badge: '63' },
   { view: { name: 'bookmarks' } as const, label: 'บันทึก', icon: Bookmark },
 ];
 
@@ -87,9 +90,9 @@ export function Sidebar() {
             aria-label="Panya-AI"
           >
             <img
-              src="/panya-logo.png"
+              src="/mascot/mascot-front.png"
               alt="Panya-AI"
-              className="h-10 w-10 rounded-lg object-cover ring-1 ring-gold/20"
+              className="h-10 w-10 rounded-lg object-contain ring-1 ring-gold/20"
             />
             {!collapsed && (
               <div className="flex flex-col items-start leading-none">
