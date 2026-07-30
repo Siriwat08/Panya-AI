@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Send, Loader2, Sparkles, ChevronRight, Trash2 } from 'lucide-react';
+import { Send, Loader2, Sparkles, ChevronRight, Trash2, Shield, X, ExternalLink, BookOpen, Scale, Bookmark, RotateCcw } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,15 @@ const SAMPLE_QUESTIONS = [
   'นายจ้างหยุดกิจการ ต้องจ่ายค่าชดเชยอย่างไร?',
 ];
 
+/** Agent workflow steps — animated while AI is processing */
+const AGENT_STEPS = [
+  { id: 1, label: 'ทำความเข้าใจคำถาม', detail: 'วิเคราะห์ประเด็นและเจตนาของผู้ถาม' },
+  { id: 2, label: 'ค้นในฐานกฎหมาย', detail: 'FTS5 search ในมาตรา + อนุบัญญัติ' },
+  { id: 3, label: 'ค้นคำพิพากษาฎีกา', detail: 'ฎีกาแรงงาน + ฎีกาอาญา/แพ่ง' },
+  { id: 4, label: 'ประเมินความเสี่ยงฝั่งนายจ้าง', detail: 'Risk Matrix + แนวป้องกัน' },
+  { id: 5, label: 'เรียบเรียงคำตอบพร้อมอ้างอิง', detail: 'Citations [1] [2] [3]...' },
+];
+
 export function AskView() {
   const { navigate } = useNavigation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -41,11 +50,40 @@ export function AskView() {
   const [loading, setLoading] = useState(false);
   const [laborOnly, setLaborOnly] = useState(true);
   const [inputFocused, setInputFocused] = useState(false);
+  const [activeStepIdx, setActiveStepIdx] = useState(-1);
+  const [openCitation, setOpenCitation] = useState<Citation | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const stepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  // Animate agent steps while loading
+  useEffect(() => {
+    if (loading) {
+      setActiveStepIdx(0);
+      let i = 0;
+      stepTimerRef.current = setInterval(() => {
+        i++;
+        if (i >= AGENT_STEPS.length) {
+          // Hold on last step until response arrives
+          setActiveStepIdx(AGENT_STEPS.length - 1);
+        } else {
+          setActiveStepIdx(i);
+        }
+      }, 800);
+    } else {
+      if (stepTimerRef.current) {
+        clearInterval(stepTimerRef.current);
+        stepTimerRef.current = null;
+      }
+      setActiveStepIdx(-1);
+    }
+    return () => {
+      if (stepTimerRef.current) clearInterval(stepTimerRef.current);
+    };
+  }, [loading]);
 
   const ask = async (question: string) => {
     if (!question.trim() || loading) return;
@@ -54,7 +92,6 @@ export function AskView() {
     setInput('');
     setLoading(true);
 
-    // Build history (exclude current question, last 4 messages)
     const history = messages.slice(-4).map(m => ({ role: m.role, content: m.content }));
 
     try {
@@ -109,211 +146,515 @@ export function AskView() {
     ask(input);
   };
 
+  const handleCitationClick = (url: string, cit?: Citation) => {
+    if (cit) setOpenCitation(cit);
+    const params = new URLSearchParams(url.split('?')[1] || '');
+    const view = params.get('view');
+    const id = params.get('id');
+    if (view === 'section' && id) navigate({ name: 'section', sectionId: Number.parseInt(id, 10) });
+    else if (view === 'judgment' && id) navigate({ name: 'judgment', judgmentId: Number.parseInt(id, 10) });
+  };
+
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-soft border border-gold/30">
-            <Sparkles className="h-4 w-4 text-gold" />
-          </div>
-          <h1 className="text-2xl font-bold">ถาม AI ว่าด้วยกฎหมายไทย</h1>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          AI ค้นหามาตราและคำพิพากษาฎีกาที่เกี่ยวข้องจากฐานข้อมูลจริง แล้วตอบพร้อมอ้างอิง [N]
-          ห้ามให้คำแนะนำทางกฎหมายเจาะจง — ใช้เพื่อการศึกษาเท่านั้น
-        </p>
-      </div>
-
-      {/* Labor-only toggle */}
-      <div className="mb-4 flex items-center gap-2 text-xs">
-        <button type="button" onClick={() => setLaborOnly(v => !v)}
-          className={`px-3 py-1.5 rounded-full font-medium transition border ${
-            laborOnly
-              ? 'bg-gold/15 text-gold border-gold/30'
-              : 'bg-card-soft text-muted-foreground border-border/50'
-          }`}
-        >
-          {laborOnly ? '✓ ' : ''}โฟกัสเฉพาะกฎหมายแรงงาน
-        </button>
-        <span className="text-muted-foreground">
-          {laborOnly ? 'ค้นหาเฉพาะมาตรา/ฎีกาแรงงาน' : 'ค้นหาในทุกกฎหมาย'}
-        </span>
-      </div>
-
-      {/* Messages */}
-      <div className="space-y-4 mb-4 min-h-[300px]">
-        {messages.length === 0 && (
-          <div className="card-premium rounded-2xl p-8 text-center">
-            <Sparkles className="h-10 w-10 mx-auto mb-4 text-gold/70" />
-            <h2 className="text-lg font-semibold mb-2">ลองถามคำถามเหล่านี้</h2>
-            <p className="text-sm text-muted-foreground mb-6">
-              คลิกที่คำถามเพื่อเริ่มต้น หรือพิมพ์คำถามของคุณเองด้านล่าง
+    <div className="flex h-screen overflow-hidden">
+      {/* MAIN chat column */}
+      <div className={`flex flex-col bg-background transition-all duration-300 ${openCitation ? 'flex-1' : 'flex-1'}`}>
+        {/* Header */}
+        <div className="border-b border-border/60 bg-card-soft/30 px-6 py-4 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
+                ปรึกษา Panya-AI
+              </h1>
+              <Badge variant="outline" className="badge-gold text-[10px] gap-1">
+                <Shield className="h-3 w-3" />
+                Employer Mode
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              AI ตอบโดยอ้างอิงกฎหมายและคำพิพากษาจริง · ตรวจสอบต้นทางได้ทุกคำตอบ
             </p>
-            <div className="grid gap-2 text-left">
-              {SAMPLE_QUESTIONS.map((q) => (
-                <button type="button" key={q} onClick={() => ask(q)}
-                  className="px-4 py-2.5 rounded-lg bg-card-softer border border-border/40 hover:border-gold/30 hover:bg-accent/30 transition text-sm text-foreground/90"
-                >
-                  <span className="text-gold mr-2">›</span>
-                  {q}
-                </button>
-              ))}
-            </div>
           </div>
-        )}
-
-        {messages.map((msg) => (
-          <MessageBubble key={msg.uid} msg={msg} onCitationClick={(url) => {
-            // Parse url like /?view=section&id=123
-            const params = new URLSearchParams(url.split('?')[1] || '');
-            const view = params.get('view');
-            const id = params.get('id');
-            if (view === 'section' && id) navigate({ name: 'section', sectionId: Number.parseInt(id, 10) });
-            else if (view === 'judgment' && id) navigate({ name: 'judgment', judgmentId: Number.parseInt(id, 10) });
-          }} />
-        ))}
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="card-premium rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-gold" />
-              <span className="text-sm text-muted-foreground">กำลังค้นหามาตรา/ฎีกาที่เกี่ยวข้อง…</span>
-            </div>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground hover:text-foreground gap-1"
+              onClick={() => setMessages([])}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              เริ่มใหม่
+            </Button>
           </div>
-        )}
+        </div>
 
-        <div ref={messagesEndRef} />
+        {/* Labor-only toggle */}
+        <div className="px-6 pt-4 flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => setLaborOnly(v => !v)}
+            className={`px-3 py-1.5 rounded-full font-medium transition border ${
+              laborOnly
+                ? 'bg-gold/15 text-gold border-gold/30'
+                : 'bg-card-soft text-muted-foreground border-border/50'
+            }`}
+          >
+            {laborOnly ? '✓ ' : ''}โฟกัสเฉพาะกฎหมายแรงงาน
+          </button>
+          <span className="text-muted-foreground">
+            {laborOnly ? 'ค้นหาเฉพาะมาตรา/ฎีกาแรงงาน' : 'ค้นหาในทุกกฎหมาย'}
+          </span>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          {messages.length === 0 && !loading && (
+            <div className="max-w-2xl mx-auto">
+              <div className="card-premium rounded-2xl p-8 text-center">
+                <div className="flex justify-center mb-4">
+                  <img src="/panya-logo.png" alt="Panya-AI" className="h-16 w-16 rounded-lg object-cover ring-1 ring-gold/20" />
+                </div>
+                <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
+                  สวัสดีครับ ผมปัญญา
+                </h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  ที่ปรึกษากฎหมายไทยฝั่งนายจ้าง · ผมค้นและตอบคำถามได้จากกฎหมาย 78 ฉบับ, มาตรา 12,936, คำพิพากษาฎีกา 502 คดี
+                </p>
+                <div className="grid gap-2 text-left">
+                  {SAMPLE_QUESTIONS.map((q) => (
+                    <button
+                      type="button"
+                      key={q}
+                      onClick={() => ask(q)}
+                      className="px-4 py-3 rounded-lg bg-card-softer border border-border/40 hover:border-gold/30 hover:bg-accent/30 transition text-sm text-foreground/90 text-left"
+                    >
+                      <span className="text-gold mr-2">›</span>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="max-w-3xl mx-auto space-y-4">
+            {messages.map((msg) => (
+              <MessageBubble key={msg.uid} msg={msg} onCitationClick={handleCitationClick} onOpenCitation={setOpenCitation} />
+            ))}
+
+            {loading && <AgentRunning idx={activeStepIdx} />}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input */}
+        <form onSubmit={onSubmit} className="border-t border-border/60 bg-card-soft/30 px-6 py-4">
+          <div className="max-w-3xl mx-auto">
+            <div
+              className={`card-premium rounded-2xl p-2 flex gap-2 items-end transition-all duration-200 ${
+                inputFocused ? 'ring-2 ring-gold/40 shadow-lg' : ''
+              }`}
+            >
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    onSubmit(e as any);
+                  }
+                }}
+                placeholder="ถามข้อกฎหมายเป็นภาษาธรรมดา เช่น 'ลูกจ้างขาดงาน 3 วัน เลิกจ้างได้ไหม'..."
+                rows={inputFocused ? 3 : 1}
+                className={`flex-1 bg-transparent resize-none outline-none text-sm px-3 py-2 max-h-48 transition-all duration-200 ${
+                  inputFocused ? 'min-h-[80px]' : 'min-h-[40px]'
+                }`}
+                disabled={loading}
+              />
+              <Button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="bg-gold text-navy hover:bg-gold/90 flex-shrink-0"
+                size="sm"
+              >
+                <Send className="h-4 w-4" />
+                <span className="hidden sm:inline">ส่งคำถาม</span>
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground/70 text-center mt-2">
+              Panya-AI อาจผิดพลาดได้ · ควรตรวจสอบกับต้นฉบับที่อ้างอิงทุกครั้ง ·{' '}
+              <span className="text-gold">เพื่อการศึกษา ไม่ใช่คำปรึกษาทางกฎหมาย</span>
+            </p>
+          </div>
+        </form>
       </div>
 
-      {/* Clear button */}
-      {messages.length > 0 && (
-        <div className="mb-3 flex justify-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setMessages([])}
-            className="text-xs text-muted-foreground hover:text-destructive gap-1"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            ล้างการสนทนา
-          </Button>
-        </div>
-      )}
+      {/* RIGHT panel — Agent workflow + Citations */}
+      <RightPanel
+        loading={loading}
+        activeStepIdx={activeStepIdx}
+        messages={messages}
+        onOpenCitation={setOpenCitation}
+      />
 
-      {/* Input */}
-      <form onSubmit={onSubmit} className="sticky bottom-4">
-        <div
-          className={`card-premium rounded-2xl p-2 flex gap-2 items-end transition-all duration-200 ${
-            inputFocused ? 'ring-2 ring-gold/40 shadow-lg' : ''
-          }`}
-        >
-          <textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                onSubmit(e as any);
-              }
-            }}
-            placeholder="ถามคำถามกฎหมาย… (Enter เพื่อส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
-            rows={inputFocused ? 4 : 1}
-            className={`flex-1 bg-transparent resize-none outline-none text-sm px-3 py-2 max-h-48 transition-all duration-200 ${
-              inputFocused ? 'min-h-[120px]' : 'min-h-[40px]'
-            }`}
-            disabled={loading}
-          />
-          <Button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="bg-gold text-navy hover:bg-gold/90 flex-shrink-0"
-            size="sm"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-        <p className="text-[10px] text-muted-foreground/70 text-center mt-2">
-          AI อ้างอิงเฉพาะข้อมูลในฐานข้อมูล · ไม่ใช่คำแนะนำทางกฎหมาย · TSCC academic use only
-        </p>
-      </form>
+      {/* Citation drawer (3rd column, slides in) */}
+      {openCitation && (
+        <CitationDrawer citation={openCitation} onClose={() => setOpenCitation(null)} onNavigate={handleCitationClick} />
+      )}
     </div>
   );
 }
 
+/* ---------- Message Bubble ---------- */
 function MessageBubble({
   msg,
   onCitationClick,
+  onOpenCitation,
 }: {
   readonly msg: ChatMessage;
-  readonly onCitationClick: (url: string) => void;
+  readonly onCitationClick: (url: string, cit?: Citation) => void;
+  readonly onOpenCitation: (cit: Citation) => void;
 }) {
   const isUser = msg.role === 'user';
-  const bubbleClass = getBubbleClassName(isUser, msg.error);
+
+  // Render content with [N] citation pills
+  const renderContent = (text: string) => {
+    if (!msg.citations || msg.citations.length === 0) {
+      return <span className="whitespace-pre-wrap">{text}</span>;
+    }
+    const parts = text.split(/(\[\d+\])/g);
+    return parts.map((part, i) => {
+      const m = part.match(/\[(\d+)\]/);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        const cit = msg.citations?.find(c => c.index === n);
+        if (cit) {
+          return (
+            <button
+              type="button"
+              key={i}
+              onClick={() => onOpenCitation(cit)}
+              className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[11px] font-semibold bg-gold/15 text-gold border border-gold/40 hover:bg-gold/25 transition align-baseline"
+              style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}
+            >
+              {n}
+            </button>
+          );
+        }
+      }
+      return <span key={i} className="whitespace-pre-wrap">{part}</span>;
+    });
+  };
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${bubbleClass}`}>
-        {/* Content */}
-        <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed">{msg.content}</div>
-
-        {/* Citations */}
-        {!isUser && msg.citations && msg.citations.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-border/40">
-            <div className="text-xs uppercase tracking-wider text-gold mb-2 font-semibold">
-              อ้างอิง ({msg.citations.length})
-            </div>
-            <div className="grid gap-1.5">
-              {msg.citations.map(c => (
-                <button type="button" key={`${c.type}-${c.id}-${c.index}`} onClick={() => onCitationClick(c.url)}
-                  className="flex items-start gap-2 text-left p-2 rounded-lg bg-card-softer hover:bg-accent/30 border border-border/30 hover:border-gold/30 transition group"
-                >
-                  <Badge variant="outline" className="badge-gold text-[10px] flex-shrink-0">
-                    [{c.index}]
-                  </Badge>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-foreground group-hover:text-gold transition flex items-center gap-1">
-                      {c.type === 'judgment' ? <Scale2Icon /> : <BookIcon />}
-                      <span className="truncate">{c.label}</span>
-                      <ChevronRight className="h-3 w-3 ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                    </div>
-                    <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{c.snippet}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
+      <div className={`max-w-[85%] ${isUser ? '' : 'w-full'}`}>
+        {!isUser && (
+          <div className="flex items-center gap-2 mb-1.5">
+            <img src="/panya-logo.png" alt="Panya-AI" className="h-6 w-6 rounded object-cover" />
+            <span className="text-xs font-semibold text-foreground">Panya-AI</span>
             {msg.retrievedChunks !== undefined && (
-              <div className="mt-2 text-[10px] text-muted-foreground/70">
-                ค้นพบ {msg.retrievedChunks} ชิ้นข้อมูลที่เกี่ยวข้องจากฐานข้อมูล
-              </div>
+              <span className="text-[10px] text-gold">· วิเคราะห์เสร็จ · {msg.retrievedChunks} แหล่งอ้างอิง</span>
             )}
           </div>
         )}
+        <div
+          className={`rounded-2xl px-4 py-3 ${
+            isUser
+              ? 'bg-gradient-to-br from-gold to-gold/80 text-navy rounded-br-md'
+              : msg.error
+              ? 'card-premium border-destructive/30 rounded-bl-md'
+              : 'card-premium rounded-bl-md'
+          }`}
+        >
+          <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed">
+            {renderContent(msg.content)}
+          </div>
+
+          {/* Citations list (inline at bottom of AI message) */}
+          {!isUser && msg.citations && msg.citations.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-border/40">
+              <div className="text-[10px] uppercase tracking-wider text-gold mb-2 font-semibold">
+                อ้างอิง ({msg.citations.length})
+              </div>
+              <div className="grid gap-1.5">
+                {msg.citations.map(c => (
+                  <button
+                    type="button"
+                    key={`${c.type}-${c.id}-${c.index}`}
+                    onClick={() => onOpenCitation(c)}
+                    className="flex items-start gap-2 text-left p-2 rounded-lg bg-card-softer hover:bg-accent/30 border border-border/30 hover:border-gold/30 transition group"
+                  >
+                    <Badge variant="outline" className="badge-gold text-[10px] flex-shrink-0">
+                      [{c.index}]
+                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-foreground group-hover:text-gold transition flex items-center gap-1">
+                        {c.type === 'judgment' ? <Scale className="h-3 w-3" /> : <BookOpen className="h-3 w-3" />}
+                        <span className="truncate">{c.label}</span>
+                        <ChevronRight className="h-3 w-3 ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition" />
+                      </div>
+                      <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{c.snippet}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {msg.retrievedChunks !== undefined && (
+                <div className="mt-2 text-[10px] text-muted-foreground/70">
+                  ค้นพบ {msg.retrievedChunks} ชิ้นข้อมูลที่เกี่ยวข้องจากฐานข้อมูล
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-/** Resolves the bubble className from role + error state — extracted to satisfy S3358 (no nested ternary). */
-function getBubbleClassName(isUser: boolean, isError?: boolean): string {
-  if (isUser) return 'bg-gradient-to-br from-gold to-gold/80 text-navy rounded-br-md';
-  if (isError) return 'card-premium border-destructive/30 rounded-bl-md';
-  return 'card-premium rounded-bl-md';
-}
-
-// Tiny inline icons to avoid import bloat in map
-function BookIcon() {
+/* ---------- Agent Running Animation ---------- */
+function AgentRunning({ idx }: { readonly idx: number }) {
   return (
-    <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-    </svg>
+    <div className="flex justify-start">
+      <div className="w-full max-w-2xl">
+        <div className="flex items-center gap-2 mb-1.5">
+          <img src="/panya-logo.png" alt="Panya-AI" className="h-6 w-6 rounded object-cover" />
+          <span className="text-xs font-semibold text-foreground">Panya-AI</span>
+          <span className="text-[10px] text-gold">· กำลังวิเคราะห์...</span>
+        </div>
+        <div
+          className="rounded-2xl rounded-bl-md px-5 py-4 card-premium"
+          style={{ background: 'linear-gradient(180deg, rgba(201,169,97,0.05), transparent)' }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-2 w-2 rounded-full bg-gold animate-pulse" />
+            <span className="text-[10px] uppercase tracking-wider text-gold font-semibold">
+              Agent กำลังทำงาน
+            </span>
+          </div>
+          <div className="space-y-2">
+            {AGENT_STEPS.map((s, i) => {
+              const done = i < idx;
+              const active = i === idx;
+              return (
+                <div
+                  key={s.id}
+                  className="flex items-start gap-3 transition-opacity duration-200"
+                  style={{ opacity: i > idx ? 0.35 : 1 }}
+                >
+                  <div
+                    className={`h-4 w-4 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
+                      done
+                        ? 'bg-green-600'
+                        : active
+                        ? 'border-2 border-gold animate-spin'
+                        : 'border border-border/60'
+                    }`}
+                  >
+                    {done && (
+                      <svg className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className={`text-[13px] font-medium ${active ? 'text-gold' : 'text-foreground'}`}>
+                      {s.label}
+                    </div>
+                    {(done || active) && s.detail && (
+                      <div className="text-[11px] text-muted-foreground mt-0.5">{s.detail}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
-function Scale2Icon() {
+
+/* ---------- Right Panel: Workflow + Citations ---------- */
+function RightPanel({
+  loading,
+  activeStepIdx,
+  messages,
+  onOpenCitation,
+}: {
+  readonly loading: boolean;
+  readonly activeStepIdx: number;
+  readonly messages: ChatMessage[];
+  readonly onOpenCitation: (cit: Citation) => void;
+}) {
+  // Get latest AI message with citations
+  const lastAiMsg = [...messages].reverse().find(m => m.role === 'assistant' && m.citations && m.citations.length > 0);
+
   return (
-    <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
-    </svg>
+    <aside className="hidden lg:flex flex-col w-80 border-l border-border/60 bg-card-soft/20 overflow-hidden">
+      <div className="px-5 py-4 border-b border-border/60">
+        <div className="text-[10px] uppercase tracking-wider text-gold mb-1">Legal Research Panel</div>
+        <div className="text-sm font-semibold" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
+          แหล่งอ้างอิงและขั้นตอน
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5">
+        {/* Workflow status */}
+        <div className="mb-6">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Agent Workflow</div>
+          <div className="space-y-2">
+            {AGENT_STEPS.map((s, i) => {
+              const done = lastAiMsg || (loading && i < activeStepIdx);
+              const active = loading && i === activeStepIdx;
+              const pending = !lastAiMsg && !loading;
+              return (
+                <div
+                  key={s.id}
+                  className="flex items-start gap-2 transition-opacity duration-200"
+                  style={{ opacity: pending ? 0.35 : (loading && i > activeStepIdx ? 0.35 : 1) }}
+                >
+                  <div
+                    className={`h-3.5 w-3.5 rounded-full flex-shrink-0 mt-0.5 transition-all ${
+                      done
+                        ? 'bg-green-600'
+                        : active
+                        ? 'border-2 border-gold animate-spin'
+                        : 'border border-border/60'
+                    }`}
+                  />
+                  <div className={`text-[12px] leading-relaxed ${active ? 'text-gold font-semibold' : 'text-foreground/80'}`}>
+                    {s.label}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Citations from last AI message */}
+        {lastAiMsg?.citations && lastAiMsg.citations.length > 0 && (
+          <div className="mb-6">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">
+              อ้างอิง ({lastAiMsg.citations.length})
+            </div>
+            <div className="space-y-1.5">
+              {lastAiMsg.citations.map(c => (
+                <button
+                  type="button"
+                  key={`${c.type}-${c.id}-${c.index}`}
+                  onClick={() => onOpenCitation(c)}
+                  className="w-full flex items-center gap-2.5 p-2.5 rounded-lg border border-border/40 hover:border-gold/40 hover:bg-accent/30 transition group text-left"
+                >
+                  <div
+                    className={`h-6 w-6 rounded flex items-center justify-center flex-shrink-0 text-[11px] font-bold ${
+                      c.type === 'section'
+                        ? 'bg-navy text-gold'
+                        : 'bg-gold text-navy'
+                    }`}
+                    style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}
+                  >
+                    {c.index}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold text-foreground group-hover:text-gold transition truncate">
+                      {c.ref}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {c.type === 'section' ? c.label : 'คำพิพากษาศาลฎีกา'}
+                    </div>
+                  </div>
+                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-gold flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Stats */}
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">ฐานข้อมูล</div>
+          <div className="space-y-1.5 text-[12px]">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">กฎหมาย</span>
+              <span className="font-semibold">78 ฉบับ</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">มาตรา</span>
+              <span className="font-semibold">12,936</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">คำพิพากษาฎีกา</span>
+              <span className="font-semibold">502</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">อนุบัญญัติ</span>
+              <span className="font-semibold">615</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">เทมเพลต</span>
+              <span className="font-semibold">63</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+/* ---------- Citation Drawer (3rd column) ---------- */
+function CitationDrawer({
+  citation,
+  onClose,
+  onNavigate,
+}: {
+  readonly citation: Citation;
+  readonly onClose: () => void;
+  readonly onNavigate: (url: string, cit?: Citation) => void;
+}) {
+  const isSection = citation.type === 'section';
+  return (
+    <aside
+      className="hidden xl:flex flex-col w-96 border-l border-border/60 bg-background overflow-hidden"
+      style={{ animation: 'slideIn 220ms ease' }}
+    >
+      <style>{`@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }`}</style>
+      <div className="px-5 py-4 border-b border-border/60 bg-card-soft/30 flex items-start justify-between gap-2">
+        <div className="flex-1">
+          <div className="text-[10px] uppercase tracking-wider text-gold mb-1">
+            อ้างอิง [{citation.index}] · {isSection ? 'บทกฎหมาย' : 'คำพิพากษา'}
+          </div>
+          <div className="text-base font-semibold" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
+            {citation.ref}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent/40 rounded"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="text-[12px] text-gold mb-2 font-semibold">{citation.label}</div>
+        <div className="text-sm leading-relaxed text-foreground/90 prose-thai">
+          {citation.snippet}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onNavigate(citation.url, citation)}
+          className="mt-6 px-4 py-2 border border-navy-800 text-navy-800 dark:text-foreground dark:border-foreground rounded-lg text-[13px] font-medium inline-flex gap-2 items-center hover:bg-accent/30 transition"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          ดู{isSection ? 'มาตรา' : 'คำพิพากษา'}ฉบับเต็ม
+        </button>
+      </div>
+    </aside>
   );
 }

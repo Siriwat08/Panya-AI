@@ -53,7 +53,7 @@ export function AppShell() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-background pl-14 md:pl-0">
+      <main className={`flex-1 bg-background pl-14 md:pl-0 ${view.name === 'ask' ? 'overflow-hidden h-screen' : 'overflow-y-auto'}`}>
         {view.name === 'home' && <HomeView />}
         {view.name === 'laws' && <LawsView />}
         {view.name === 'law' && view.lawId > 0 && <LawView lawId={view.lawId} />}
@@ -70,7 +70,6 @@ export function AppShell() {
         {view.name === 'bookmarks' && <BookmarksView />}
         {view.name === 'templates' && <TemplatesView />}
       </main>
-      
     </div>
   );
 }
