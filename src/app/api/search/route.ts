@@ -37,10 +37,10 @@ export async function GET(req: NextRequest) {
         SELECT s.section_id, s.law_id, s.section_number, s.section_number_thai,
                s.section_text, s.is_labor_related,
                l.title as law_title, l.law_code, l.category
-        FROM law_sections_fts
-        JOIN law_sections s ON s.section_id = law_sections_fts.rowid
+        FROM law_sections_fts_v2
+        JOIN law_sections s ON s.section_id = law_sections_fts_v2.rowid
         JOIN laws l ON l.law_id = s.law_id
-        WHERE law_sections_fts MATCH ${ftsQuery}
+        WHERE law_sections_fts_v2 MATCH ${ftsQuery}
         ORDER BY rank
         LIMIT ${limit}
       `);
@@ -109,10 +109,10 @@ export async function GET(req: NextRequest) {
         SELECT j.judgment_id, j.deka_no, j.year, j.case_type,
                j.topic, j.fact, j.ruling, j.source_url, j.note,
                s.source_name
-        FROM judgments_fts
-        JOIN judgments j ON j.judgment_id = judgments_fts.rowid
+        FROM judgments_fts_v2
+        JOIN judgments j ON j.judgment_id = judgments_fts_v2.rowid
         LEFT JOIN sources s ON s.source_id = j.source_id
-        WHERE judgments_fts MATCH ${ftsQuery}
+        WHERE judgments_fts_v2 MATCH ${ftsQuery}
         ORDER BY rank
         LIMIT ${limit}
       `);
@@ -176,9 +176,9 @@ export async function GET(req: NextRequest) {
       const rows = await db.$queryRaw<any[]>(Prisma.sql`
         SELECT r.regulation_id, r.regulation_code, r.title, r.category,
                r.full_text, r.is_repealed, r.repeal_status
-        FROM regulations_fts
-        JOIN regulations r ON r.regulation_id = regulations_fts.rowid
-        WHERE regulations_fts MATCH ${ftsQuery}
+        FROM regulations_fts_v2
+        JOIN regulations r ON r.regulation_id = regulations_fts_v2.rowid
+        WHERE regulations_fts_v2 MATCH ${ftsQuery}
           AND r.repeal_status = 'active'
         ORDER BY rank
         LIMIT ${Math.max(3, Math.floor(limit / 3))}
@@ -204,9 +204,9 @@ export async function GET(req: NextRequest) {
       const rows = await db.$queryRaw<any[]>(Prisma.sql`
         SELECT t.template_id, t.template_code, t.title, t.category,
                t.full_text
-        FROM contract_templates_fts
-        JOIN contract_templates t ON t.template_id = contract_templates_fts.rowid
-        WHERE contract_templates_fts MATCH ${ftsQuery}
+        FROM contract_templates_fts_v2
+        JOIN contract_templates t ON t.template_id = contract_templates_fts_v2.rowid
+        WHERE contract_templates_fts_v2 MATCH ${ftsQuery}
         ORDER BY rank
         LIMIT ${Math.max(3, Math.floor(limit / 3))}
       `);

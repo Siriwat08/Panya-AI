@@ -12,11 +12,11 @@ try {
     SELECT s.section_id, s.law_id, s.article_key, s.section_number,
            s.section_text, s.is_labor_related, s.is_cancelled,
            l.law_name_th, l.category, l.is_labor_law,
-           snippet(law_sections_fts, 0, '<<', '>>', '...', 24) as snippet
-    FROM law_sections_fts
-    JOIN law_sections s ON s.section_id = law_sections_fts.rowid
+           snippet(law_sections_fts_v2, 0, '<<', '>>', '...', 24) as snippet
+    FROM law_sections_fts_v2
+    JOIN law_sections s ON s.section_id = law_sections_fts_v2.rowid
     JOIN laws l ON l.law_id = s.law_id
-    WHERE law_sections_fts MATCH ${ftsQuery}
+    WHERE law_sections_fts_v2 MATCH ${ftsQuery}
     ORDER BY rank
     LIMIT ${limit}
   `);
