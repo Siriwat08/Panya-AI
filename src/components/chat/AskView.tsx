@@ -302,7 +302,7 @@ export function AskView() {
               const isLastAi = i === messages.length - 1 && msg.role === 'assistant';
               return (
                 <div key={msg.uid} ref={isLastAi ? lastAiMsgRef : undefined}>
-                  <MessageBubble msg={msg} onCitationClick={handleCitationClick} onOpenCitation={setOpenCitation} />
+                  <MessageBubble msg={msg} onCitationClick={handleCitationClick} onOpenCitation={setOpenCitation} mascotSrc={mascotSrc} onMascotClick={handleMascotClick} />
                 </div>
               );
             })}
@@ -378,10 +378,14 @@ function MessageBubble({
   msg,
   onCitationClick,
   onOpenCitation,
+  mascotSrc,
+  onMascotClick,
 }: {
   readonly msg: ChatMessage;
   readonly onCitationClick: (url: string, cit?: Citation) => void;
   readonly onOpenCitation: (cit: Citation) => void;
+  readonly mascotSrc: string;
+  readonly onMascotClick: () => void;
 }) {
   const isUser = msg.role === 'user';
 
@@ -419,7 +423,7 @@ function MessageBubble({
       <div className={`max-w-[85%] ${isUser ? '' : 'w-full'}`}>
         {!isUser && (
           <div className="flex items-center gap-2 mb-1.5">
-            <button type="button" onClick={handleMascotClick} className="flex-shrink-0">
+            <button type="button" onClick={onMascotClick} className="flex-shrink-0">
               <img src={mascotSrc} alt="Panya-AI" className="h-6 w-6 rounded object-contain transition-all duration-300" />
             </button>
             <span className="text-xs font-semibold text-foreground">Panya-AI</span>
