@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Loader2, ChevronRight, Scale, BookOpen, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, ChevronRight, Scale, BookOpen, AlertTriangle, FileText, Gavel } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
-type SearchType = 'all' | 'sections' | 'judgments' | 'laws';
+type SearchType = 'all' | 'sections' | 'judgments' | 'laws' | 'regulations' | 'templates';
 
 interface SearchResults {
   sections: Array<{
@@ -43,6 +43,22 @@ interface SearchResults {
     isLaborLaw: boolean;
     sectionCount: number;
     hitCount?: number;
+  }>;
+  regulations: Array<{
+    type: 'regulation';
+    id: number;
+    regulationCode: string;
+    title: string;
+    category: string | null;
+    snippet: string;
+  }>;
+  templates: Array<{
+    type: 'template';
+    id: number;
+    templateCode: string;
+    title: string;
+    category: string;
+    snippet: string;
   }>;
   total: number;
   q: string;
@@ -138,6 +154,8 @@ export function SearchView({ initialQ, initialType }: { readonly initialQ?: stri
           { v: 'sections', label: 'มาตรากฎหมาย' },
           { v: 'judgments', label: 'คำพิพากษา' },
           { v: 'laws', label: 'ชื่อกฎหมาย' },
+          { v: 'regulations', label: 'อนุบัญญัติ' },
+          { v: 'templates', label: 'เทมเพลตสัญญา' },
         ] as Array<{ v: SearchType; label: string }>).map(opt => (
           <button type="button" key={opt.v} onClick={() => {
               setType(opt.v);
@@ -247,6 +265,59 @@ export function SearchView({ initialQ, initialType }: { readonly initialQ?: stri
                   <div
                     className="text-xs prose-thai text-muted-foreground line-clamp-2"
                     dangerouslySetInnerHTML={highlightSnippet(j.snippet)}
+                  />
+                </button>
+              ))}
+            </ResultGroup>
+          )}
+
+          {/* Regulations */}
+          {results.regulations.length > 0 && (
+            <ResultGroup title="อนุบัญญัติ / กฎกระทรวง / ประกาศ" icon={Gavel} count={results.regulations.length}>
+              {results.regulations.map(r => (
+                <div key={r.id}
+                  className="card-premium rounded-xl p-4 w-full text-left group cursor-default"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="badge-gold text-[10px]">{r.regulationCode}</Badge>
+                      {r.category && (
+                        <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground">{r.category}</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground group-hover:text-gold transition mb-1 line-clamp-2">
+                    {r.title}
+                  </h3>
+                  <div
+                    className="text-xs prose-thai text-muted-foreground line-clamp-2"
+                    dangerouslySetInnerHTML={highlightSnippet(r.snippet)}
+                  />
+                </div>
+              ))}
+            </ResultGroup>
+          )}
+
+          {/* Contract Templates */}
+          {results.templates.length > 0 && (
+            <ResultGroup title="เทมเพลตเอกสาร / สัญญา" icon={FileText} count={results.templates.length}>
+              {results.templates.map(t => (
+                <button type="button" key={t.id} onClick={() => navigate({ name: 'templates' })}
+                  className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="badge-gold text-[10px]">{t.templateCode}</Badge>
+                      <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground">{t.category}</Badge>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-gold flex-shrink-0" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground group-hover:text-gold transition mb-1 line-clamp-2">
+                    {t.title}
+                  </h3>
+                  <div
+                    className="text-xs prose-thai text-muted-foreground line-clamp-2"
+                    dangerouslySetInnerHTML={highlightSnippet(t.snippet)}
                   />
                 </button>
               ))}

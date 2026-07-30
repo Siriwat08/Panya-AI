@@ -12,6 +12,9 @@ import { SearchView } from '@/components/search/SearchView';
 import { AskView } from '@/components/chat/AskView';
 import { BookmarksView } from '@/components/common/BookmarksView';
 import { TemplatesView } from '@/components/templates/TemplatesView';
+import { PdfBuilderView } from '@/components/pdf/PdfBuilderView';
+import { RiskMatrixView } from '@/components/risk/RiskMatrixView';
+import { ContractAnalysisView } from '@/components/contract/ContractAnalysisView';
 import type { View } from '@/lib/types';
 
 function parseView(): View {
@@ -32,6 +35,9 @@ function parseView(): View {
     case 'bookmarks': return { name: 'bookmarks' };
     case 'templates': return { name: 'templates' };
     case 'ask': return { name: 'ask' };
+    case 'pdf-builder': return { name: 'pdf-builder', templateId: id ? Number.parseInt(id, 10) : undefined };
+    case 'risk-matrix': return { name: 'risk-matrix' };
+    case 'contract-analysis': return { name: 'contract-analysis' };
     default: return { name: 'home' };
   }
 }
@@ -53,7 +59,7 @@ export function AppShell() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-background pl-14 md:pl-0">
+      <main className={`flex-1 bg-background pl-14 md:pl-0 ${view.name === 'ask' ? 'overflow-hidden h-screen' : 'overflow-y-auto'}`}>
         {view.name === 'home' && <HomeView />}
         {view.name === 'laws' && <LawsView />}
         {view.name === 'law' && view.lawId > 0 && <LawView lawId={view.lawId} />}
@@ -67,10 +73,12 @@ export function AppShell() {
           <SearchView initialQ={view.q} initialType={view.type as any} />
         )}
         {view.name === 'ask' && <AskView />}
+        {view.name === 'pdf-builder' && <PdfBuilderView initialTemplateId={view.templateId} />}
+        {view.name === 'risk-matrix' && <RiskMatrixView />}
+        {view.name === 'contract-analysis' && <ContractAnalysisView />}
         {view.name === 'bookmarks' && <BookmarksView />}
         {view.name === 'templates' && <TemplatesView />}
       </main>
-      
     </div>
   );
 }

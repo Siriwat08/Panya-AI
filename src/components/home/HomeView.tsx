@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Hero } from '@/components/home/Hero';
 import { LawList } from '@/components/home/LawList';
-import { AskCta } from '@/components/home/AskCta';
 import type { DashboardStats, LawSummary } from '@/lib/types';
 
 export function HomeView() {
@@ -25,7 +24,6 @@ export function HomeView() {
     <>
       <Hero stats={stats} />
       <LawList laws={laws} />
-      <AskCta />
     </>
   );
 }

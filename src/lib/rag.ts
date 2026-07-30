@@ -92,10 +92,10 @@ export async function retrieveRelevant(
              NULL as regulation_title, NULL as regulation_code,
              NULL as template_title, NULL as template_code, NULL as template_category,
              l.category
-      FROM law_sections_fts
-      JOIN law_sections s ON s.section_id = law_sections_fts.rowid
+      FROM law_sections_fts_v2
+      JOIN law_sections s ON s.section_id = law_sections_fts_v2.rowid
       JOIN laws l ON l.law_id = s.law_id
-      WHERE law_sections_fts MATCH ${ftsQuery}
+      WHERE law_sections_fts_v2 MATCH ${ftsQuery}
         ${opts.laborOnly ? Prisma.sql`AND (s.is_labor_related = 1 OR l.category = 'labor')` : Prisma.empty}
       ORDER BY rank
       LIMIT ${topK}
@@ -112,9 +112,9 @@ export async function retrieveRelevant(
              NULL as regulation_title, NULL as regulation_code,
              NULL as template_title, NULL as template_code, NULL as template_category,
              NULL as category
-      FROM judgments_fts
-      JOIN judgments j ON j.judgment_id = judgments_fts.rowid
-      WHERE judgments_fts MATCH ${ftsQuery}
+      FROM judgments_fts_v2
+      JOIN judgments j ON j.judgment_id = judgments_fts_v2.rowid
+      WHERE judgments_fts_v2 MATCH ${ftsQuery}
         ${opts.laborOnly ? Prisma.sql`AND j.case_type = 'แรงงาน'` : Prisma.empty}
       ORDER BY rank
       LIMIT ${Math.max(3, Math.floor(topK / 2))}
@@ -131,9 +131,9 @@ export async function retrieveRelevant(
              r.title as regulation_title, r.regulation_code,
              NULL as template_title, NULL as template_code, NULL as template_category,
              r.category
-      FROM regulations_fts
-      JOIN regulations r ON r.regulation_id = regulations_fts.rowid
-      WHERE regulations_fts MATCH ${ftsQuery}
+      FROM regulations_fts_v2
+      JOIN regulations r ON r.regulation_id = regulations_fts_v2.rowid
+      WHERE regulations_fts_v2 MATCH ${ftsQuery}
       ORDER BY rank
       LIMIT ${Math.max(2, Math.floor(topK / 3))}
     `);
@@ -149,9 +149,9 @@ export async function retrieveRelevant(
              NULL as regulation_title, NULL as regulation_code,
              t.title as template_title, t.template_code, t.category as template_category,
              NULL as category
-      FROM contract_templates_fts
-      JOIN contract_templates t ON t.template_id = contract_templates_fts.rowid
-      WHERE contract_templates_fts MATCH ${ftsQuery}
+      FROM contract_templates_fts_v2
+      JOIN contract_templates t ON t.template_id = contract_templates_fts_v2.rowid
+      WHERE contract_templates_fts_v2 MATCH ${ftsQuery}
       ORDER BY rank
       LIMIT ${Math.max(2, Math.floor(topK / 3))}
     `);
