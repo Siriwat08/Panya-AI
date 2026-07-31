@@ -5,6 +5,8 @@ import { Send, Loader2, Sparkles, ChevronRight, Trash2, Shield, X, ExternalLink,
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { usePersona } from '@/components/onboarding/usePersona';
+import { PERSONAS } from '@/lib/persona';
 
 interface Citation {
   index: number;
@@ -34,6 +36,13 @@ const SAMPLE_QUESTIONS = [
   'นายจ้างหยุดกิจการ ต้องจ่ายค่าชดเชยอย่างไร?',
 ];
 
+/** Returns persona-specific sample questions, falling back to defaults */
+function useSampleQuestions() {
+  const { persona } = usePersona();
+  if (persona) return persona.sampleQuestions;
+  return SAMPLE_QUESTIONS;
+}
+
 /** Agent workflow steps — animated while AI is processing */
 const AGENT_STEPS = [
   { id: 1, label: 'ทำความเข้าใจคำถาม', detail: 'วิเคราะห์ประเด็นและเจตนาของผู้ถาม' },
@@ -59,7 +68,15 @@ export function AskView() {
   });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  // Persona — drives default laborOnly + sample questions + AI prompt customization
+  const { persona, personaId } = usePersona();
+  // Default laborOnly from persona (HR/Owner = true, Legal = false). User can still override.
   const [laborOnly, setLaborOnly] = useState(true);
+  // Sync laborOnly when persona changes
+  useEffect(() => {
+    if (persona) setLaborOnly(persona.laborOnly);
+  }, [persona]);
+  const sampleQuestions = useSampleQuestions();
   const [inputFocused, setInputFocused] = useState(false);
   const [activeStepIdx, setActiveStepIdx] = useState(-1);
   const [openCitation, setOpenCitation] = useState<Citation | null>(null);
@@ -164,7 +181,7 @@ export function AskView() {
       const res = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, history, laborOnly }),
+        body: JSON.stringify({ question, history, laborOnly, persona: personaId }),
       });
       const data = await res.json();
 
@@ -295,11 +312,18 @@ export function AskView() {
                 <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
                   สวัสดีครับ ผมปัญญา
                 </h2>
-                <p className="text-sm text-muted-foreground mb-6">
+                <p className="text-sm text-muted-foreground mb-3">
                   ที่ปรึกษากฎหมายไทยฝั่งนายจ้าง · ผมค้นและตอบคำถามได้จากกฎหมาย 78 ฉบับ, มาตรา 12,936, คำพิพากษาฎีกา 502 คดี
                 </p>
+                {persona && (
+                  <div className="mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium" style={{ borderColor: 'var(--gold)', color: 'var(--gold)', background: 'rgba(201,169,97,0.08)' }}>
+                    <span>👤 บทบาท: {persona.label}</span>
+                    <span className="opacity-60">·</span>
+                    <span className="opacity-80">{persona.labelEn}</span>
+                  </div>
+                )}
                 <div className="grid gap-2 text-left">
-                  {SAMPLE_QUESTIONS.map((q) => (
+                  {sampleQuestions.map((q) => (
                     <button
                       type="button"
                       key={q}

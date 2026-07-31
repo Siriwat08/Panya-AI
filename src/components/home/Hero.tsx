@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Scale, Sparkles, BookOpen, Gavel, Shield, Check, FileText, FileSearch } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
+import { usePersona } from '@/components/onboarding/usePersona';
 import type { DashboardStats } from '@/lib/types';
 
 const TYPEWRITER_QUESTIONS = [
@@ -30,18 +31,31 @@ const EMPLOYER_DEFENSE_CARDS = [
 
 export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
   const { navigate } = useNavigation();
+  const { persona } = usePersona();
+
+  // Persona-aware question pool — fall back to defaults if no persona
+  const questions = useMemo(() => {
+    if (persona && persona.sampleQuestions.length >= 3) return persona.sampleQuestions;
+    return TYPEWRITER_QUESTIONS;
+  }, [persona]);
+
   const [typedQ, setTypedQ] = useState('');
   const [startIdx] = useState(() => {
     // Cryptographically secure random — satisfies SonarCloud S2245
     const arr = new Uint8Array(1);
     crypto.getRandomValues(arr);
-    return arr[0] % TYPEWRITER_QUESTIONS.length;
+    return arr[0] % questions.length;
   });
   const [qIdx, setQIdx] = useState(startIdx);
 
+  // Reset qIdx if questions array changes (persona switch)
+  useEffect(() => {
+    if (qIdx >= questions.length) setQIdx(0);
+  }, [questions, qIdx]);
+
   // Typewriter effect — cycle through example questions (randomized start)
   useEffect(() => {
-    const q = TYPEWRITER_QUESTIONS[qIdx];
+    const q = questions[qIdx];
     let i = 0;
     setTypedQ('');
     const typeInt = setInterval(() => {
@@ -49,7 +63,7 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
       setTypedQ(q.slice(0, i));
       if (i >= q.length) {
         clearInterval(typeInt);
-        setTimeout(() => setQIdx((qIdx + 1) % TYPEWRITER_QUESTIONS.length), 4000);
+        setTimeout(() => setQIdx((qIdx + 1) % questions.length), 4000);
       }
     }, 120);
     return () => clearInterval(typeInt);

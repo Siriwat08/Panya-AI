@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { retrieveRelevant, buildContext, buildCitations } from '@/lib/rag';
 import { createChatCompletion } from '@/lib/zai-client';
+import { PERSONAS, type PersonaId } from '@/lib/persona';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -219,6 +220,7 @@ interface AskBody {
   question: string;
   history?: { role: 'user' | 'assistant'; content: string }[];
   laborOnly?: boolean;
+  persona?: PersonaId | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -229,19 +231,36 @@ export async function POST(req: NextRequest) {
   if (!question) return NextResponse.json({ error: 'question required' }, { status: 400 });
   if (question.length > 2000) return NextResponse.json({ error: 'too long' }, { status: 400 });
 
-  // 1. Route to appropriate sub-skill
-  const skill = selectSkill(question);
-  console.log(`[ask] skill=${skill.name} (question="${question.slice(0, 60)}...")`);
+  // 0. Resolve persona (from request body — set by frontend from localStorage)
+  const personaId = body.persona && body.persona in PERSONAS ? body.persona : null;
+  const persona = personaId ? PERSONAS[personaId] : null;
 
-  // 2. RAG: ดึงข้อมูลที่เกี่ยวข้อง (ใช้ topK และ laborOnly ของ skill)
+  // 1. Route to appropriate sub-skill
+  let skill = selectSkill(question);
+  // Persona-based skill override: if persona has a strong preference, use it when scoring is close
+  if (persona && skill.name === 'legal-qa') {
+    // No keyword match → use persona's primary skill
+    const preferredSkillName = persona.skillPriority[0];
+    const preferred = SKILLS.find(s => s.name === preferredSkillName);
+    if (preferred) skill = preferred;
+  }
+  console.log(`[ask] persona=${personaId || 'none'} skill=${skill.name} (question="${question.slice(0, 60)}...")`);
+
+  // 2. RAG: ดึงข้อมูลที่เกี่ยวข้อง (ใช้ topK และ laborOnly ของ skill — หรือ persona override)
+  const laborOnly = body.laborOnly !== undefined
+    ? body.laborOnly
+    : (persona ? persona.laborOnly : skill.laborOnly);
   const hits = await retrieveRelevant(question, {
     topK: skill.topK,
-    laborOnly: body.laborOnly !== undefined ? body.laborOnly : skill.laborOnly,
+    laborOnly,
   });
   const context = buildContext(hits);
   const citations = buildCitations(hits);
 
-  // 3. Build message with skill-specific prompt
+  // 3. Build message with persona prefix + skill prompt
+  const personaPrefix = persona ? persona.promptPrefix + '\n\n' : '';
+  const systemPrompt = personaPrefix + skill.prompt;
+
   const userMsg = `คำถาม: ${question}
 
 ข้อมูลอ้างอิงจากฐานข้อมูล Panya-AI:
@@ -250,7 +269,7 @@ ${context}
 วิเคราะห์และตอบในฐานะ Legal Strategist ฝั่งนายจ้าง อ้างอิง [N] จาก context ข้างต้น`;
 
   const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-    { role: 'system', content: skill.prompt },
+    { role: 'system', content: systemPrompt },
   ];
   if (body.history && Array.isArray(body.history)) {
     for (const m of body.history.slice(-4)) {
@@ -268,6 +287,7 @@ ${context}
       citations,
       retrievedChunks: hits.length,
       skill: skill.name, // ส่งชื่อ skill กลับไปให้ frontend แสดง
+      persona: personaId,
     });
   } catch (e: any) {
     console.error('AI failed:', e);
@@ -277,6 +297,7 @@ ${context}
       citations,
       retrievedChunks: hits.length,
       skill: skill.name,
+      persona: personaId,
     }, { status: 500 });
   }
 }

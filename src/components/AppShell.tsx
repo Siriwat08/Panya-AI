@@ -15,6 +15,8 @@ import { TemplatesView } from '@/components/templates/TemplatesView';
 import { PdfBuilderView } from '@/components/pdf/PdfBuilderView';
 import { RiskMatrixView } from '@/components/risk/RiskMatrixView';
 import { ContractAnalysisView } from '@/components/contract/ContractAnalysisView';
+import { PersonaOnboarding } from '@/components/onboarding/PersonaOnboarding';
+import { isOnboarded } from '@/lib/persona';
 import type { View } from '@/lib/types';
 
 function parseView(): View {
@@ -44,6 +46,7 @@ function parseView(): View {
 
 export function AppShell() {
   const [view, setView] = useState<View>({ name: 'home' });
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     const update = () => {
@@ -53,6 +56,15 @@ export function AppShell() {
     };
     update();
     window.addEventListener('popstate', update);
+    // Trigger persona onboarding on first visit
+    if (!isOnboarded()) {
+      // Small delay so the home page renders first
+      const t = setTimeout(() => setShowOnboarding(true), 800);
+      return () => {
+        window.removeEventListener('popstate', update);
+        clearTimeout(t);
+      };
+    }
     return () => window.removeEventListener('popstate', update);
   }, []);
 
@@ -79,6 +91,11 @@ export function AppShell() {
         {view.name === 'bookmarks' && <BookmarksView />}
         {view.name === 'templates' && <TemplatesView />}
       </main>
+
+      {/* Persona onboarding modal — shown on first visit */}
+      {showOnboarding && (
+        <PersonaOnboarding onClose={() => setShowOnboarding(false)} />
+      )}
     </div>
   );
 }

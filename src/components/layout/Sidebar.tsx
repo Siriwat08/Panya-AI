@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, FileText, Menu, X, ChevronLeft, Grid3x3, FileSearch, Wand2 } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
+import { PersonaSwitcher } from '@/components/onboarding/PersonaSwitcher';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -170,10 +171,13 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* User info — show email instead of name/role */}
+        {/* User info — show email + persona switcher */}
         {!collapsed && (
-          <div className="border-t border-border/40 p-4">
-            <div className="flex items-center gap-3">
+          <div className="border-t border-border/40 p-4 space-y-2">
+            {/* Persona switcher — quick change role */}
+            <PersonaSwitcher />
+            {/* User email */}
+            <div className="flex items-center gap-3 pt-1">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold/70 text-sm font-bold text-navy flex-shrink-0">
                 ศว
               </div>
@@ -184,6 +188,19 @@ export function Sidebar() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+        {collapsed && (
+          <div className="border-t border-border/40 p-3 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              className="h-9 w-9 rounded-full bg-gradient-to-br from-gold/80 to-gold/50 text-navy flex items-center justify-center text-xs font-bold"
+              title="ขยายเมนูเพื่อเปลี่ยนบทบาท"
+              aria-label="ขยายเมนู"
+            >
+              ศว
+            </button>
           </div>
         )}
       </aside>
