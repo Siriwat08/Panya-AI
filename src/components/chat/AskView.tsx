@@ -365,7 +365,7 @@ export function AskView() {
         onOpenCitation={setOpenCitation}
       />
 
-      {/* Citation drawer (3rd column, slides in) */}
+      {/* Citation drawer — slides in on XL, modal overlay on smaller screens */}
       {openCitation && (
         <CitationDrawer citation={openCitation} onClose={() => setOpenCitation(null)} onNavigate={handleCitationClick} />
       )}
@@ -405,8 +405,8 @@ function MessageBubble({
             <button
               type="button"
               key={i}
-              onClick={() => onOpenCitation(cit)}
-              className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[11px] font-semibold bg-gold/15 text-gold border border-gold/40 hover:bg-gold/25 transition align-baseline"
+              onClick={() => onCitationClick(cit.url, cit)}
+              className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[11px] font-semibold bg-gold/15 text-gold border border-gold/40 hover:bg-gold/25 transition align-baseline cursor-pointer"
               style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}
             >
               {n}
@@ -456,8 +456,8 @@ function MessageBubble({
                   <button
                     type="button"
                     key={`${c.type}-${c.id}-${c.index}`}
-                    onClick={() => onOpenCitation(c)}
-                    className="flex items-start gap-2 text-left p-2 rounded-lg bg-card-softer hover:bg-accent/30 border border-border/30 hover:border-gold/30 transition group"
+                    onClick={() => onCitationClick(c.url, c)}
+                    className="flex items-start gap-2 text-left p-2 rounded-lg bg-card-softer hover:bg-accent/30 border border-border/30 hover:border-gold/30 transition group cursor-pointer"
                   >
                     <Badge variant="outline" className="badge-gold text-[10px] flex-shrink-0">
                       [{c.index}]
@@ -688,10 +688,16 @@ function CitationDrawer({
 }) {
   const isSection = citation.type === 'section';
   return (
-    <aside
-      className="hidden xl:flex flex-col w-96 border-l border-border/60 bg-background overflow-hidden"
-      style={{ animation: 'slideIn 220ms ease' }}
-    >
+    <>
+      {/* Mobile overlay backdrop */}
+      <div
+        className="fixed inset-0 z-50 bg-black/50 xl:hidden"
+        onClick={onClose}
+      />
+      <aside
+        className="fixed xl:relative right-0 top-0 bottom-0 z-50 xl:z-auto flex flex-col w-full sm:w-96 max-w-md xl:w-96 border-l border-border/60 bg-background overflow-hidden xl:flex"
+        style={{ animation: 'slideIn 220ms ease' }}
+      >
       <style>{`@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }`}</style>
       <div className="px-5 py-4 border-b border-border/60 bg-card-soft/30 flex items-start justify-between gap-2">
         <div className="flex-1">
@@ -727,5 +733,6 @@ function CitationDrawer({
         </button>
       </div>
     </aside>
+    </>
   );
 }

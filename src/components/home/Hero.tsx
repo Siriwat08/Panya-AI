@@ -12,6 +12,11 @@ const TYPEWRITER_QUESTIONS = [
   'พนักงานทดลองงาน 119 วัน เลิกจ้างต้องจ่ายค่าชดเชยไหม?',
   'ลูกจ้างเอาข้อมูลลูกค้าไปให้คู่แข่ง ฟ้องอาญาได้ไหม?',
   'ลดค่าจ้างเพราะบริษัทขาดทุน ต้องขอความยินยอมไหม?',
+  'นายจ้างหยุดกิจการ ต้องจ่ายค่าชดเชยอย่างไร?',
+  'ลูกจ้างลาป่วยเกิน 30 วัน หักเงินเดือนได้ไหม?',
+  'รถร่วมเป็นลูกจ้างหรือไม่ ต้องจ่ายค่าชดเชยไหม?',
+  'ลูกจ้างเมาแล้วขับรถบรรทุก ฟ้องไล่ออกได้ไหม?',
+  'พนักงานลาออกแล้วฟ้องเรียก OT ย้อนหลัง ต้องจ่ายไหม?',
 ];
 
 const EMPLOYER_DEFENSE_CARDS = [
@@ -26,9 +31,10 @@ const EMPLOYER_DEFENSE_CARDS = [
 export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
   const { navigate } = useNavigation();
   const [typedQ, setTypedQ] = useState('');
-  const [qIdx, setQIdx] = useState(0);
+  const [startIdx] = useState(() => Math.floor(Math.random() * TYPEWRITER_QUESTIONS.length));
+  const [qIdx, setQIdx] = useState(startIdx);
 
-  // Typewriter effect — cycle through example questions
+  // Typewriter effect — cycle through example questions (randomized start)
   useEffect(() => {
     const q = TYPEWRITER_QUESTIONS[qIdx];
     let i = 0;
@@ -148,6 +154,47 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
 
 /* ---------- Live Chat Demo (animated preview) ---------- */
 function LiveChatDemo({ typedQ, onAskClick }: { readonly typedQ: string; readonly onAskClick: () => void }) {
+  // Randomize demo content based on typedQ hash
+  const demoVariants = [
+    {
+      verdict: 'เลิกจ้างได้ · ไม่ต้องจ่ายค่าชดเชย',
+      verdictColor: 'bg-green-500/20 text-green-300',
+      answer: 'หากลูกจ้างขาดงานติดต่อกันครบ 3 วันทำงานโดยไม่มีเหตุอันสมควร ถือเป็น "การละทิ้งหน้าที่" ตาม',
+      law: 'พ.ร.บ.คุ้มครองแรงงาน มาตรา 119(5)',
+      steps: [
+        { label: 'ค้นในกฎหมายแรงงาน 2541', done: true },
+        { label: 'พบมาตรา 119(5), 118', done: true },
+        { label: 'ตรวจสอบคำพิพากษาฎีกา 4 คดี', done: true },
+        { label: 'เรียบเรียงคำตอบพร้อมอ้างอิง', done: false },
+      ],
+    },
+    {
+      verdict: 'ต้องจ่าย · 1.5 เท่าค่าจ้างปกติ',
+      verdictColor: 'bg-blue-500/20 text-blue-300',
+      answer: 'การทำงานล่วงเวลา นายจ้างต้องจ่ายค่าจ้างไม่น้อยกว่า 1.5 เท่าของอัตราค่าจ้างปกติ สำหรับชั่วโมงแรก และ 3 เท่า สำหรับชั่วโมงถัดไปในวันหยุด ตาม',
+      law: 'พ.ร.บ.คุ้มครองแรงงาน มาตรา 61',
+      steps: [
+        { label: 'ค้นในกฎหมายแรงงาน 2541', done: true },
+        { label: 'พบมาตรา 61, 62 (OT rate)', done: true },
+        { label: 'ตรวจอนุบัญญัติค่าจ้าง OT', done: true },
+        { label: 'คำนวณอัตราตามประเภทงาน', done: false },
+      ],
+    },
+    {
+      verdict: 'เสี่ยงสูง · ต้องจ่ายค่าชดเชย',
+      verdictColor: 'bg-red-500/20 text-red-300',
+      answer: 'การลดค่าจ้างฝ่ายเดียวโดยไม่ได้ความยินยอมจากลูกจ้าง ถือเป็นการเปลี่ยนสภาพการจ้างโดยมิชอบ ตาม',
+      law: 'พ.ร.บ.คุ้มครองแรงงาน มาตรา 53',
+      steps: [
+        { label: 'ค้นในกฎหมายแรงงาน 2541', done: true },
+        { label: 'พบมาตรา 53 (ห้ามลดค่าจ้าง)', done: true },
+        { label: 'ตรวจฎีกา 2566/9876', done: true },
+        { label: 'ประเมินความเสี่ยงฝั่งนายจ้าง', done: false },
+      ],
+    },
+  ];
+  const variantIdx = typedQ.length % demoVariants.length;
+  const demo = demoVariants[variantIdx];
   return (
     <div
       className="rounded-2xl p-1 border border-gold/30 shadow-2xl"
@@ -185,12 +232,7 @@ function LiveChatDemo({ typedQ, onAskClick }: { readonly typedQ: string; readonl
         {/* Agent steps preview */}
         <div className="px-4 py-3">
           <div className="text-[10px] uppercase tracking-wider text-navy-300 mb-2">AI กำลังทำงาน</div>
-          {[
-            { label: 'ค้นในกฎหมายแรงงาน 2541', done: true },
-            { label: 'พบมาตรา 119(5), 118', done: true },
-            { label: 'ตรวจสอบคำพิพากษาฎีกา 4 คดี', done: true },
-            { label: 'เรียบเรียงคำตอบพร้อมอ้างอิง', done: false },
-          ].map((s, i) => (
+          {demo.steps.map((s, i) => (
             <div
               key={i}
               className="flex items-center gap-2.5 py-1.5 text-[12px]"
@@ -216,14 +258,14 @@ function LiveChatDemo({ typedQ, onAskClick }: { readonly typedQ: string; readonl
 
         {/* Preview answer */}
         <div className="px-4 py-3 border-t border-gold/15 bg-black/20">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold bg-green-500/20 text-green-300 mb-2">
-            <Check className="h-3 w-3" /> เลิกจ้างได้ · ไม่ต้องจ่ายค่าชดเชย
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold ${demo.verdictColor} mb-2`}>
+            <Check className="h-3 w-3" /> {demo.verdict}
           </div>
           <div className="text-[13px] leading-relaxed text-white/85">
-            หากลูกจ้างขาดงานติดต่อกันครบ 3 วันทำงานโดยไม่มีเหตุอันสมควร ถือเป็น &quot;การละทิ้งหน้าที่&quot; ตาม
-            <span className="text-gold font-medium mx-1">พ.ร.บ.คุ้มครองแรงงาน มาตรา 119(5)</span>
+            {demo.answer}
+            <span className="text-gold font-medium mx-1">{demo.law}</span>
             <sup className="text-gold" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>[1]</sup>
-            {' '}นายจ้างมีสิทธิเลิกจ้าง...
+            {' '}นายจ้างมีสิทธิดำเนินการ...
           </div>
         </div>
       </div>
