@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Scale, Sparkles, BookOpen, Gavel, Shield, Check, FileText } from 'lucide-react';
+import { ArrowRight, Scale, Sparkles, BookOpen, Gavel, Shield, Check, FileText, FileSearch } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import type { DashboardStats } from '@/lib/types';
 
@@ -148,6 +148,9 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
 
           {/* Gold rule */}
           <div className="mt-16 h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
+
+          {/* 4 Action Buttons — "วันนี้คุณต้องการอะไร?" */}
+          <ActionButtons onNav={navigate} />
         </div>
       </section>
 
@@ -398,5 +401,82 @@ function EmployerSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ---------- 4 Action Buttons ---------- */
+function ActionButtons({ onNav }: { readonly onNav: (v: any) => void }) {
+  const actions = [
+    {
+      label: 'ถาม AI',
+      desc: 'คำถามกฎหมายแรงงาน พร้อมอ้างอิงมาตรา/ฎีกา',
+      icon: Sparkles,
+      view: { name: 'ask' as const },
+      color: 'from-gold/15 to-gold/5 border-gold/30 hover:border-gold/50',
+      iconColor: 'text-gold',
+    },
+    {
+      label: 'ตรวจสัญญา',
+      desc: 'วางข้อความสัญญา → AI หาข้อผิดกฎหมาย',
+      icon: FileSearch,
+      view: { name: 'contract-analysis' as const },
+      color: 'from-red-500/10 to-red-500/5 border-red-500/20 hover:border-red-500/40',
+      iconColor: 'text-red-500',
+    },
+    {
+      label: 'สร้างเอกสาร',
+      desc: '63 เทมเพลตพร้อมกรอก + ดาวน์โหลด PDF',
+      icon: FileText,
+      view: { name: 'pdf-builder' as const },
+      color: 'from-blue-500/10 to-blue-500/5 border-blue-500/20 hover:border-blue-500/40',
+      iconColor: 'text-blue-500',
+    },
+    {
+      label: 'ประเมินความเสี่ยง',
+      desc: 'Risk Matrix 5×5 สำหรับนายจ้าง',
+      icon: Shield,
+      view: { name: 'risk-matrix' as const },
+      color: 'from-orange-500/10 to-orange-500/5 border-orange-500/20 hover:border-orange-500/40',
+      iconColor: 'text-orange-500',
+    },
+  ];
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-center text-xl sm:text-2xl font-bold mb-2" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
+        วันนี้คุณต้องการอะไร?
+      </h2>
+      <p className="text-center text-sm text-muted-foreground mb-6">
+        เลือกงานที่ต้องการ — Panya-AI พร้อมช่วยทันที
+      </p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
+        {actions.map((a) => {
+          const Icon = a.icon;
+          return (
+            <button
+              type="button"
+              key={a.label}
+              onClick={() => onNav(a.view)}
+              className={`group relative overflow-hidden rounded-xl border bg-gradient-to-br ${a.color} p-5 sm:p-6 text-left transition-all hover:shadow-lg hover:-translate-y-0.5`}
+            >
+              <div className="flex flex-col gap-3">
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center bg-background/50 ${a.iconColor}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm sm:text-base font-bold text-foreground">
+                    {a.label}
+                  </div>
+                  <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 leading-snug">
+                    {a.desc}
+                  </div>
+                </div>
+              </div>
+              <ArrowRight className="absolute bottom-3 right-3 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
