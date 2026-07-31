@@ -76,7 +76,7 @@
 
 ---
 
-## ✅ สถานะปัจจุบัน (Phase 1-4 เสร็จแล้ว)
+## ✅ สถานะปัจจุบัน (Phase 1-7 เสร็จแล้ว)
 
 | Phase | สถานะ | รายละเอียด |
 |---|---|---|
@@ -84,23 +84,27 @@
 | Phase 2 | ✅ เสร็จ | Design System + Sidebar + Logo + Fonts |
 | Phase 3 | ✅ เสร็จ | AI Chat 3-column + Typewriter Hero + Employer Section |
 | Phase 4 | ✅ เสร็จ | PDF Builder + Risk Matrix + Contract Analysis + Mascot |
+| Phase 5 | ✅ เสร็จ | 4 Action Buttons on home page (ถาม/สร้าง/วิเคราะห์/Risk) |
+| Phase 6 | ✅ เสร็จ | Law status badges (ใช้บังคับ/ยกเลิกแล้ว) |
+| Phase 7 | ✅ เสร็จ | Persona onboarding — HR / Legal / Owner + role-aware AI prompt + skill routing |
 
 ## ⬜ ขั้นต่อไป
 
-### Phase 5: UX/UI Redesign (Warm Professional)
-- ลดความแข็งของ UI
-- เปลี่ยนหน้าแรกเป็น "งานที่อยากทำ"
-- ลด border/card density
-- เปลี่ยนภาษาให้เป็นมิตรขึ้น
+### Phase 8: Retention & Discovery
+- Latest/Popular/Recommended judgments บนหน้าคำพิพากษา
+- Notes + highlights + export PDF (per section/judgment)
+- Save chat sessions + recently viewed
+- Bookmark folders + tags
 
-### Phase 6: Retention Features
-- Law status badges
-- Latest/Popular/Recommended judgments
-- Notes + highlights + export PDF
-- Persona-based onboarding
+### Phase 9: Data Expansion (สำคัญมาก)
+- **RAG coverage expansion**: เพิ่ม judgments + regulations เข้า rag_chunks (ปัจจุบันมีแค่ law_section)
+- **Cross-references**: เชื่อม law ↔ judgment ↔ regulation (ตาราง cross_references ยังว่าง)
+- **Newer judgments**: ingest ฎีกา 2557-2567 (2014-2024) — ปัจจุบันล่าสุด 2550
+- **Regulation status fix**: re-ingest ด้วย is_repealed flag ที่ถูกต้อง (ตอนนี้ active ทั้ง 615)
+- **Law sections status**: เพิ่ม field is_cancelled สำหรับมาตราที่ถูกแก้ไข/ยกเลิก
 
-### Phase 7: Enterprise
-- Contract deviation check
+### Phase 10: Enterprise
+- Contract deviation check (compare uploaded contract vs template)
 - Internal company knowledge ingestion
-- Role-based access
+- Role-based access control (RBAC)
 - Approval workflow + audit trail
