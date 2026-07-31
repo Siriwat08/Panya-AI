@@ -689,10 +689,12 @@ function CitationDrawer({
   const isSection = citation.type === 'section';
   return (
     <>
-      {/* Mobile overlay backdrop */}
-      <div
-        className="fixed inset-0 z-50 bg-black/50 xl:hidden"
+      {/* Mobile overlay backdrop — use <button> for keyboard accessibility */}
+      <button
+        type="button"
         onClick={onClose}
+        className="fixed inset-0 z-50 bg-black/50 xl:hidden cursor-default"
+        aria-label="ปิดหน้าต่างอ้างอิง"
       />
       <aside
         className="fixed xl:relative right-0 top-0 bottom-0 z-50 xl:z-auto flex flex-col w-full sm:w-96 max-w-md xl:w-96 border-l border-border/60 bg-background overflow-hidden xl:flex"

@@ -31,7 +31,11 @@ const EMPLOYER_DEFENSE_CARDS = [
 export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
   const { navigate } = useNavigation();
   const [typedQ, setTypedQ] = useState('');
-  const [startIdx] = useState(() => Math.floor(Math.random() * TYPEWRITER_QUESTIONS.length));
+  const [startIdx] = useState(() => {
+    // Safe use of Math.random: only for cosmetic typewriter start position,
+    // not for security, cryptography, or any sensitive operation.
+    return Math.floor(Math.random() * TYPEWRITER_QUESTIONS.length);
+  });
   const [qIdx, setQIdx] = useState(startIdx);
 
   // Typewriter effect — cycle through example questions (randomized start)
