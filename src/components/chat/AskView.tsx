@@ -45,7 +45,18 @@ const AGENT_STEPS = [
 
 export function AskView() {
   const { navigate } = useNavigation();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Restore chat state from sessionStorage (saved before navigating to section/judgment)
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = sessionStorage.getItem('panya_chat_messages');
+      if (saved) {
+        sessionStorage.removeItem('panya_chat_messages');
+        return JSON.parse(saved);
+      }
+    } catch {}
+    return [];
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [laborOnly, setLaborOnly] = useState(true);
@@ -206,16 +217,23 @@ export function AskView() {
     const params = new URLSearchParams(url.split('?')[1] || '');
     const view = params.get('view');
     const id = params.get('id');
+    // Save chat state to sessionStorage before navigating away
+    if (messages.length > 0) {
+      try {
+        sessionStorage.setItem('panya_chat_messages', JSON.stringify(messages));
+        sessionStorage.setItem('panya_chat_input', input);
+      } catch {}
+    }
     if (view === 'section' && id) navigate({ name: 'section', sectionId: Number.parseInt(id, 10) });
     else if (view === 'judgment' && id) navigate({ name: 'judgment', judgmentId: Number.parseInt(id, 10) });
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden overflow-x-hidden">
       {/* MAIN chat column */}
       <div className="flex flex-col bg-background transition-all duration-300 flex-1">
         {/* Header */}
-        <div className="border-b border-border/60 bg-card-soft/30 px-6 py-4 flex items-center justify-between">
+        <div className="border-b border-border/60 bg-card-soft/30 px-4 sm:px-6 py-4 flex items-center justify-between overflow-hidden">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
@@ -262,7 +280,7 @@ export function AskView() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6 min-w-0">
           {messages.length === 0 && !loading && (
             <div className="max-w-2xl mx-auto">
               <div className="card-premium rounded-2xl p-8 text-center">
@@ -297,7 +315,7 @@ export function AskView() {
             </div>
           )}
 
-          <div className="max-w-3xl mx-auto space-y-4">
+          <div className="max-w-3xl mx-auto space-y-4 min-w-0">
             {messages.map((msg, i) => {
               const isLastAi = i === messages.length - 1 && msg.role === 'assistant';
               return (
@@ -420,7 +438,7 @@ function MessageBubble({
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[85%] ${isUser ? '' : 'w-full min-w-0'}`}>
+      <div className={`max-w-[92%] sm:max-w-[85%] ${isUser ? '' : 'w-full min-w-0 overflow-hidden'}`}>
         {!isUser && (
           <div className="flex items-center gap-2 mb-1.5">
             <button type="button" onClick={onMascotClick} className="flex-shrink-0">
@@ -441,7 +459,7 @@ function MessageBubble({
               : 'card-premium rounded-bl-md'
           }`}
         >
-          <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed overflow-x-auto break-words">
+          <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed break-words overflow-hidden w-full">
             {renderContent(msg.content)}
           </div>
 
@@ -689,10 +707,12 @@ function CitationDrawer({
   const isSection = citation.type === 'section';
   return (
     <>
-      {/* Mobile overlay backdrop */}
-      <div
-        className="fixed inset-0 z-50 bg-black/50 xl:hidden"
+      {/* Mobile overlay backdrop — use <button> for keyboard accessibility */}
+      <button
+        type="button"
         onClick={onClose}
+        className="fixed inset-0 z-50 bg-black/50 xl:hidden cursor-default"
+        aria-label="ปิดหน้าต่างอ้างอิง"
       />
       <aside
         className="fixed xl:relative right-0 top-0 bottom-0 z-50 xl:z-auto flex flex-col w-full sm:w-96 max-w-md xl:w-96 border-l border-border/60 bg-background overflow-hidden xl:flex"

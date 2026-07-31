@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Scale, Sparkles, BookOpen, Gavel, Shield, Check, FileText } from 'lucide-react';
+import { ArrowRight, Scale, Sparkles, BookOpen, Gavel, Shield, Check, FileText, FileSearch } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import type { DashboardStats } from '@/lib/types';
 
@@ -31,7 +31,12 @@ const EMPLOYER_DEFENSE_CARDS = [
 export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
   const { navigate } = useNavigation();
   const [typedQ, setTypedQ] = useState('');
-  const [startIdx] = useState(() => Math.floor(Math.random() * TYPEWRITER_QUESTIONS.length));
+  const [startIdx] = useState(() => {
+    // Cryptographically secure random — satisfies SonarCloud S2245
+    const arr = new Uint8Array(1);
+    crypto.getRandomValues(arr);
+    return arr[0] % TYPEWRITER_QUESTIONS.length;
+  });
   const [qIdx, setQIdx] = useState(startIdx);
 
   // Typewriter effect — cycle through example questions (randomized start)
@@ -44,9 +49,9 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
       setTypedQ(q.slice(0, i));
       if (i >= q.length) {
         clearInterval(typeInt);
-        setTimeout(() => setQIdx((qIdx + 1) % TYPEWRITER_QUESTIONS.length), 2800);
+        setTimeout(() => setQIdx((qIdx + 1) % TYPEWRITER_QUESTIONS.length), 4000);
       }
-    }, 32);
+    }, 120);
     return () => clearInterval(typeInt);
   }, [qIdx]);
 
@@ -135,7 +140,7 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
 
           {/* Live chat demo card with typewriter */}
           <div className="mt-12 max-w-2xl mx-auto">
-            <LiveChatDemo typedQ={typedQ} onAskClick={() => navigate({ name: 'ask' })} />
+            <LiveChatDemo typedQ={typedQ} qIdx={qIdx} onAskClick={() => navigate({ name: 'ask' })} />
           </div>
 
           {/* Stats Strip */}
@@ -143,6 +148,9 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
 
           {/* Gold rule */}
           <div className="mt-16 h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
+
+          {/* 4 Action Buttons — "วันนี้คุณต้องการอะไร?" */}
+          <ActionButtons onNav={navigate} />
         </div>
       </section>
 
@@ -153,7 +161,7 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
 }
 
 /* ---------- Live Chat Demo (animated preview) ---------- */
-function LiveChatDemo({ typedQ, onAskClick }: { readonly typedQ: string; readonly onAskClick: () => void }) {
+function LiveChatDemo({ typedQ, qIdx, onAskClick }: { readonly typedQ: string; readonly qIdx: number; readonly onAskClick: () => void }) {
   // Randomize demo content based on typedQ hash
   const demoVariants = [
     {
@@ -193,7 +201,9 @@ function LiveChatDemo({ typedQ, onAskClick }: { readonly typedQ: string; readonl
       ],
     },
   ];
-  const variantIdx = typedQ.length % demoVariants.length;
+  // Use qIdx (question index) for variant — NOT typedQ.length
+  // This way demo content only changes when the QUESTION changes, not every keystroke
+  const variantIdx = qIdx % demoVariants.length;
   const demo = demoVariants[variantIdx];
   return (
     <div
@@ -391,5 +401,82 @@ function EmployerSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ---------- 4 Action Buttons ---------- */
+function ActionButtons({ onNav }: { readonly onNav: (v: any) => void }) {
+  const actions = [
+    {
+      label: 'ถาม AI',
+      desc: 'คำถามกฎหมายแรงงาน พร้อมอ้างอิงมาตรา/ฎีกา',
+      icon: Sparkles,
+      view: { name: 'ask' as const },
+      color: 'from-gold/15 to-gold/5 border-gold/30 hover:border-gold/50',
+      iconColor: 'text-gold',
+    },
+    {
+      label: 'ตรวจสัญญา',
+      desc: 'วางข้อความสัญญา → AI หาข้อผิดกฎหมาย',
+      icon: FileSearch,
+      view: { name: 'contract-analysis' as const },
+      color: 'from-red-500/10 to-red-500/5 border-red-500/20 hover:border-red-500/40',
+      iconColor: 'text-red-500',
+    },
+    {
+      label: 'สร้างเอกสาร',
+      desc: '63 เทมเพลตพร้อมกรอก + ดาวน์โหลด PDF',
+      icon: FileText,
+      view: { name: 'pdf-builder' as const },
+      color: 'from-blue-500/10 to-blue-500/5 border-blue-500/20 hover:border-blue-500/40',
+      iconColor: 'text-blue-500',
+    },
+    {
+      label: 'ประเมินความเสี่ยง',
+      desc: 'Risk Matrix 5×5 สำหรับนายจ้าง',
+      icon: Shield,
+      view: { name: 'risk-matrix' as const },
+      color: 'from-orange-500/10 to-orange-500/5 border-orange-500/20 hover:border-orange-500/40',
+      iconColor: 'text-orange-500',
+    },
+  ];
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-center text-xl sm:text-2xl font-bold mb-2" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
+        วันนี้คุณต้องการอะไร?
+      </h2>
+      <p className="text-center text-sm text-muted-foreground mb-6">
+        เลือกงานที่ต้องการ — Panya-AI พร้อมช่วยทันที
+      </p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
+        {actions.map((a) => {
+          const Icon = a.icon;
+          return (
+            <button
+              type="button"
+              key={a.label}
+              onClick={() => onNav(a.view)}
+              className={`group relative overflow-hidden rounded-xl border bg-gradient-to-br ${a.color} p-5 sm:p-6 text-left transition-all hover:shadow-lg hover:-translate-y-0.5`}
+            >
+              <div className="flex flex-col gap-3">
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center bg-background/50 ${a.iconColor}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm sm:text-base font-bold text-foreground">
+                    {a.label}
+                  </div>
+                  <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 leading-snug">
+                    {a.desc}
+                  </div>
+                </div>
+              </div>
+              <ArrowRight className="absolute bottom-3 right-3 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
