@@ -32,8 +32,13 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
   const { navigate } = useNavigation();
   const [typedQ, setTypedQ] = useState('');
   const [startIdx] = useState(() => {
-    // Safe use of Math.random: only for cosmetic typewriter start position,
-    // not for security, cryptography, or any sensitive operation.
+    // Use crypto.getRandomValues for SonarCloud S2245 compliance
+    const arr = new Uint8Array(1);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(arr);
+      return arr[0] % TYPEWRITER_QUESTIONS.length;
+    }
+    // Fallback for older browsers
     return Math.floor(Math.random() * TYPEWRITER_QUESTIONS.length);
   });
   const [qIdx, setQIdx] = useState(startIdx);
