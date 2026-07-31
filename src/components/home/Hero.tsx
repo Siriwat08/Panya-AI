@@ -49,9 +49,9 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
       setTypedQ(q.slice(0, i));
       if (i >= q.length) {
         clearInterval(typeInt);
-        setTimeout(() => setQIdx((qIdx + 1) % TYPEWRITER_QUESTIONS.length), 2800);
+        setTimeout(() => setQIdx((qIdx + 1) % TYPEWRITER_QUESTIONS.length), 4000);
       }
-    }, 65);
+    }, 120);
     return () => clearInterval(typeInt);
   }, [qIdx]);
 
