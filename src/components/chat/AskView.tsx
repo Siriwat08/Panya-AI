@@ -268,7 +268,7 @@ export function AskView() {
               <div className="card-premium rounded-2xl p-8 text-center">
                 <div className="flex justify-center mb-4">
                   <button type="button" onClick={handleMascotClick} className="relative">
-                    <img src={mascotSrc} alt="Panya-AI" className="h-16 w-16 rounded-lg object-contain ring-1 ring-gold/20 bg-navy/5 transition-all duration-300" />
+                    <img src={mascotSrc} alt="Panya-AI" className="h-20 w-20 rounded-lg object-contain ring-1 ring-gold/20 bg-navy/5 transition-all duration-300" />
                     {showEasterEgg && (
                       <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-gold bg-navy/90 px-3 py-1 rounded-full">🤖 อ้อ! จับได้แล้วเหรอ?</div>
                     )}
@@ -420,11 +420,11 @@ function MessageBubble({
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[85%] ${isUser ? '' : 'w-full'}`}>
+      <div className={`max-w-[85%] ${isUser ? '' : 'w-full min-w-0'}`}>
         {!isUser && (
           <div className="flex items-center gap-2 mb-1.5">
             <button type="button" onClick={onMascotClick} className="flex-shrink-0">
-              <img src={mascotSrc} alt="Panya-AI" className="h-6 w-6 rounded object-contain transition-all duration-300" />
+              <img src={mascotSrc} alt="Panya-AI" className="h-8 w-8 rounded object-contain transition-all duration-300" />
             </button>
             <span className="text-xs font-semibold text-foreground">Panya-AI</span>
             {msg.retrievedChunks !== undefined && (
@@ -441,7 +441,7 @@ function MessageBubble({
               : 'card-premium rounded-bl-md'
           }`}
         >
-          <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed">
+          <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed overflow-x-auto break-words">
             {renderContent(msg.content)}
           </div>
 
@@ -492,7 +492,7 @@ function AgentRunning({ idx, mascotSrc }: { readonly idx: number; readonly masco
     <div className="flex justify-start">
       <div className="w-full max-w-2xl">
         <div className="flex items-center gap-2 mb-1.5">
-          <img src={mascotSrc} alt="Panya-AI" className="h-6 w-6 rounded object-contain transition-all duration-300" />
+          <img src={mascotSrc} alt="Panya-AI" className="h-8 w-8 rounded object-contain transition-all duration-300" />
           <span className="text-xs font-semibold text-foreground">Panya-AI</span>
           <span className="text-[10px] text-gold">· กำลังวิเคราะห์...</span>
         </div>

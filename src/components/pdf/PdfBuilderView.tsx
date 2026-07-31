@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 interface Template { templateId: number; templateCode: string; title: string; category: string; }
 const CATS: Record<string,string> = { labor:'แรงงาน', accounting:'บัญชี', contracts:'สัญญา', court:'ศาล', sso:'สปส.' };
 const STEPS = [{n:1,label:'เลือกเทมเพลต'},{n:2,label:'กรอกข้อมูล'},{n:3,label:'ตรวจดู'},{n:4,label:'ดาวน์โหลด'}];
-const DF = { company:'ห้างหุ้นส่วนจำกัด เผ่าปัญญา ทรานสปอร์ต', empName:'', empPosition:'', reason:'', date:new Date().toLocaleDateString('th-TH'), signerName:'นายศิริวัฒน์ เผ่าปัญญา', signerTitle:'กรรมการผู้จัดการ' };
+const DF = { company:'ห้างหุ้นส่วนจำกัด เผ่าปัญญา ทรานสปอร์ต', empName:'', empPosition:'', reason:'', date:new Date().toLocaleDateString('th-TH'), signerName:'', signerTitle:'' };
 
 export function PdfBuilderView({ initialTemplateId }: { readonly initialTemplateId?: number }) {
   const { navigate } = useNavigation();

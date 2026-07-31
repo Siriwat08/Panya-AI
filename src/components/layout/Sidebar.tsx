@@ -92,7 +92,7 @@ export function Sidebar() {
             <img
               src="/mascot/mascot-front.png"
               alt="Panya-AI"
-              className="h-10 w-10 rounded-lg object-contain ring-1 ring-gold/20"
+              className="h-12 w-12 rounded-lg object-contain ring-1 ring-gold/20"
             />
             {!collapsed && (
               <div className="flex flex-col items-start leading-none">
