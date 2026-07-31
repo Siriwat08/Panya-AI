@@ -3,6 +3,17 @@ import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+/** Parse a JSON array stored as TEXT in DB. Returns [] if invalid. */
+function parseJsonArray(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
 // GET /api/judgments              — list (filter by case_type, page)
 // GET /api/judgments?id=123       — judgment detail + related sections
 export async function GET(req: NextRequest) {
@@ -64,16 +75,21 @@ export async function GET(req: NextRequest) {
       court: 'ศาลฎีกา',
       category: judgment.caseType,
       caseType: judgment.caseType,
+      caseTypeGroup: judgment.caseTypeGroup,
       categoryCode: null,
       issueNumber: null,
-      lawReferences: judgment.lawsCited,  // legacy alias
-      lawsCited: judgment.lawsCited,
+      lawReferences: judgment.lawsCited,  // legacy alias (string)
+      lawsCited: judgment.lawsCited,  // JSON array string
+      lawsCitedList: parseJsonArray(judgment.lawsCited),
+      topic: judgment.topic,
+      topics: judgment.topics,  // JSON array string
+      topicsList: parseJsonArray(judgment.topics),
       fact: judgment.fact,
       decision: judgment.ruling,  // legacy alias
       ruling: judgment.ruling,
       verdict: judgment.verdict,
+      issue: judgment.issue,
       title: judgment.topic,
-      topic: judgment.topic,
       sourceId: judgment.sourceId,
       sourceUrl: judgment.sourceUrl,
       sourceName: judgment.source?.sourceName ?? null,
@@ -113,8 +129,11 @@ export async function GET(req: NextRequest) {
     year: j.year,
     category: j.caseType,
     caseType: j.caseType,
+    caseTypeGroup: j.caseTypeGroup,
     title: j.topic,
     topic: j.topic,
+    topicsList: parseJsonArray(j.topics),
+    lawsCitedList: parseJsonArray(j.lawsCited),
     fact: j.fact,
     decision: j.ruling,  // legacy alias
     ruling: j.ruling,

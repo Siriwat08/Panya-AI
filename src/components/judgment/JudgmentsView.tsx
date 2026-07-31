@@ -11,7 +11,11 @@ interface JudgmentListItem {
   caseNumber: string | null;
   caseYear: string | null;
   category: string | null;
+  caseTypeGroup: string | null;
   title: string | null;
+  topic: string | null;
+  topicsList?: string[];
+  lawsCitedList?: string[];
   fact: string | null;
   decision: string | null;
   sourceUrl: string | null;
@@ -104,7 +108,10 @@ export function JudgmentsView() {
           </div>
 
           <div className="space-y-3">
-            {data.data.map(j => (
+            {data.data.map(j => {
+              const topics = j.topicsList || [];
+              const lawsCited = j.lawsCitedList || [];
+              return (
               <button type="button" key={j.judgmentId} onClick={() => navigate({ name: 'judgment', judgmentId: j.judgmentId })}
                 className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
               >
@@ -113,7 +120,12 @@ export function JudgmentsView() {
                     <Badge variant="outline" className="badge-gold text-[10px]">
                       ฎีกา {j.caseNumber}
                     </Badge>
-                    {j.category === 'labor' && (
+                    {j.caseYear && (
+                      <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground">
+                        ปี {j.caseYear}
+                      </Badge>
+                    )}
+                    {j.category === 'แรงงาน' && (
                       <Badge variant="outline" className="badge-labor text-[10px]">แรงงาน</Badge>
                     )}
                     {j.licenseNote?.includes('TSCC') && (
@@ -121,13 +133,33 @@ export function JudgmentsView() {
                         TSCC
                       </Badge>
                     )}
+                    {lawsCited.length > 0 && (
+                      <span className="text-[10px] text-muted-foreground/70">
+                        · อ้าง {lawsCited.length} มาตรา
+                      </span>
+                    )}
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-gold group-hover:translate-x-1 transition flex-shrink-0" />
                 </div>
                 {j.title && (
-                  <h3 className="text-sm font-semibold text-foreground group-hover:text-gold transition mb-1 line-clamp-2">
+                  <h3 className="text-sm font-semibold text-foreground group-hover:text-gold transition mb-1.5 line-clamp-2">
                     {j.title}
                   </h3>
+                )}
+                {/* Topic chips (max 3 shown) */}
+                {topics.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-1.5">
+                    {topics.slice(0, 3).map((t, i) => (
+                      <span key={`${t}-${i}`} className="inline-block px-1.5 py-0.5 rounded bg-gold/10 border border-gold/15 text-[10px] text-gold/90">
+                        {t}
+                      </span>
+                    ))}
+                    {topics.length > 3 && (
+                      <span className="text-[10px] text-muted-foreground/60 px-1">
+                        +{topics.length - 3}
+                      </span>
+                    )}
+                  </div>
                 )}
                 {j.fact && (
                   <p className="text-xs text-muted-foreground prose-thai line-clamp-2">{j.fact}</p>
@@ -138,7 +170,8 @@ export function JudgmentsView() {
                   </p>
                 )}
               </button>
-            ))}
+              );
+            })}
           </div>
 
           {/* Pagination */}

@@ -48,12 +48,65 @@ export async function GET(req: NextRequest) {
     if (!law) {
       return NextResponse.json({ error: 'Law not found' }, { status: 404 });
     }
+
+    // Fetch related judgments via cross_references table
+    let relatedJudgments: Array<{
+      judgmentId: number;
+      judgmentCode: string;
+      dekaNo: string | null;
+      year: string | null;
+      topic: string | null;
+    }> = [];
+    try {
+      const refsToLaw = await db.crossReference.findMany({
+        where: { targetType: 'law', targetId: lawId },
+        select: { sourceType: true, sourceId: true, sourceCode: true, sectionRef: true },
+        take: 100,
+      });
+      const templateIds = refsToLaw
+        .filter(r => r.sourceType === 'contract_template' && r.sourceId)
+        .map(r => r.sourceId);
+
+      if (templateIds.length > 0) {
+        const judRefs = await db.crossReference.findMany({
+          where: {
+            sourceType: 'contract_template',
+            sourceId: { in: templateIds as number[] },
+            targetType: 'judgment',
+            targetId: { not: null },
+          },
+          select: { targetId: true },
+          distinct: ['targetId'],
+          take: 30,
+        });
+        const judIds = judRefs.map(r => r.targetId).filter(Boolean) as number[];
+        if (judIds.length > 0) {
+          const judgments = await db.judgment.findMany({
+            where: { judgmentId: { in: judIds } },
+            select: {
+              judgmentId: true,
+              judgmentCode: true,
+              dekaNo: true,
+              year: true,
+              topic: true,
+            },
+            take: 20,
+            orderBy: { year: 'desc' },
+          });
+          relatedJudgments = judgments;
+        }
+      }
+    } catch (e) {
+      console.warn('[laws] cross_references query failed:', e instanceof Error ? e.message : String(e));
+    }
+
     // Map to legacy field names for frontend compatibility
     return NextResponse.json({
       ...law,
       lawNameTh: law.title,  // legacy alias
       lawNameEn: null,
       isLaborLaw: law.category === 'labor' ? 1 : 0,  // legacy alias
+      relatedJudgments,
     });
   }
 

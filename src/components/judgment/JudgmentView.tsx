@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ExternalLink, AlertTriangle, Scale, ChevronRight, BookOpen } from 'lucide-react';
+import { ExternalLink, AlertTriangle, Scale, ChevronRight, BookOpen, Tag, Gavel } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,11 +14,20 @@ interface JudgmentData {
   caseYear: string | null;
   court: string | null;
   category: string | null;
+  caseTypeGroup: string | null;
   categoryCode: string | null;
   issueNumber: string | null;
   lawReferences: string | null;
+  lawsCited: string | null;
+  lawsCitedList?: string[];
+  topic: string | null;
+  topics: string | null;
+  topicsList?: string[];
   fact: string | null;
   decision: string | null;
+  ruling: string | null;
+  verdict: string | null;
+  issue: string | null;
   title: string | null;
   sourceId: number | null;
   sourceUrl: string | null;
@@ -60,11 +69,16 @@ export function JudgmentView({ judgmentId }: { readonly judgmentId: number }) {
 
   const isTSCC = data.licenseNote?.includes('TSCC');
 
-  // Parse law references into list
-  const lawRefs = (data.lawReferences || '')
-    .split(/[;,]/)
-    .map(s => s.trim())
-    .filter(Boolean);
+  // Use lawsCitedList if available (proper JSON array from v2 metadata), else parse legacy string
+  const lawRefs = (data.lawsCitedList && data.lawsCitedList.length > 0)
+    ? data.lawsCitedList
+    : (data.lawReferences || '')
+        .split(/[;,]/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+  // Topics array (tags)
+  const topics = data.topicsList || [];
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
@@ -78,11 +92,21 @@ export function JudgmentView({ judgmentId }: { readonly judgmentId: number }) {
               <Badge variant="outline" className="badge-gold">
                 ฎีกา {data.caseNumber}
               </Badge>
-              {data.category === 'labor' && (
+              {data.caseYear && (
+                <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                  ปี {data.caseYear}
+                </Badge>
+              )}
+              {data.category === 'แรงงาน' && (
                 <Badge variant="outline" className="badge-labor">คดีแรงงาน</Badge>
               )}
-              {data.category === 'criminal' && (
+              {data.category === 'อาญา' && (
                 <Badge variant="outline" className="border-border/60 text-muted-foreground">คดีอาญา</Badge>
+              )}
+              {data.caseTypeGroup && (
+                <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                  {data.caseTypeGroup}
+                </Badge>
               )}
               {data.court && (
                 <Badge variant="outline" className="border-border/60 text-muted-foreground">{data.court}</Badge>
@@ -93,6 +117,19 @@ export function JudgmentView({ judgmentId }: { readonly judgmentId: number }) {
                 {data.title}
               </h1>
             )}
+
+            {/* Topics chips */}
+            {topics.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {topics.map((t, i) => (
+                  <span key={`${t}-${i}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gold/10 border border-gold/20 text-[11px] text-gold">
+                    <Tag className="h-2.5 w-2.5" />
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground">
               แหล่งข้อมูล: {data.sourceName || 'ไม่ระบุ'}
               {data.sourceDescription && ` — ${data.sourceDescription}`}
@@ -130,12 +167,35 @@ export function JudgmentView({ judgmentId }: { readonly judgmentId: number }) {
           </div>
         )}
 
+        {/* Issue (ประเด็นของคดี) */}
+        {data.issue && (
+          <div className="mt-6 pt-6 border-t border-border/40">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gold mb-2">
+              <Gavel className="h-4 w-4" />
+              ประเด็นของคดี
+            </h2>
+            <div className="prose-thai text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+              {data.issue}
+            </div>
+          </div>
+        )}
+
         {/* Decision */}
         {data.decision && (
           <div className="mt-6 pt-6 border-t border-border/40">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-gold mb-2">คำพิพากษา</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-gold mb-2">คำวินิจฉัย</h2>
             <div className="prose-thai text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
               {data.decision}
+            </div>
+          </div>
+        )}
+
+        {/* Verdict (บทสุดท้าย) */}
+        {data.verdict && (
+          <div className="mt-6 pt-6 border-t border-border/40">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-gold mb-2">คำพิพากษา</h2>
+            <div className="prose-thai text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+              {data.verdict}
             </div>
           </div>
         )}
@@ -161,11 +221,14 @@ export function JudgmentView({ judgmentId }: { readonly judgmentId: number }) {
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gold mb-3">
             <Scale className="h-4 w-4" />
             กฎหมายที่อ้างอิง
+            <span className="text-xs font-normal text-muted-foreground normal-case tracking-normal">
+              ({lawRefs.length} มาตรา)
+            </span>
           </h2>
           <div className="flex flex-wrap gap-2">
             {lawRefs.map((ref, i) => (
               <span
-                key={ref}
+                key={`${ref}-${i}`}
                 className="inline-block px-3 py-1 rounded-md bg-card-softer border border-border/40 text-xs text-foreground/90"
               >
                 {ref}

@@ -277,9 +277,11 @@ export function SearchView({ initialQ, initialType }: { readonly initialQ?: stri
           {/* Regulations */}
           {results.regulations.length > 0 && (
             <ResultGroup title="อนุบัญญัติ / กฎกระทรวง / ประกาศ" icon={Gavel} count={results.regulations.length}>
-              {results.regulations.map(r => (
+              {results.regulations.map(r => {
+                const isSuperseded = r.repealStatus === 'superseded';
+                return (
                 <div key={r.id}
-                  className="card-premium rounded-xl p-4 w-full text-left group cursor-default"
+                  className={`card-premium rounded-xl p-4 w-full text-left group cursor-default ${isSuperseded ? 'opacity-75' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -295,6 +297,11 @@ export function SearchView({ initialQ, initialType }: { readonly initialQ?: stri
                           ยกเลิกแล้ว
                         </Badge>
                       )}
+                      {isSuperseded && (
+                        <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500 bg-amber-500/10">
+                          ฉบับเก่า — มีฉบับใหม่กว่า
+                        </Badge>
+                      )}
                       {r.repealStatus === 'active' && (
                         <Badge variant="outline" className="text-[10px] border-green-500/40 text-green-600 bg-green-500/10">
                           ใช้บังคับ
@@ -302,7 +309,7 @@ export function SearchView({ initialQ, initialType }: { readonly initialQ?: stri
                       )}
                     </div>
                   </div>
-                  <h3 className="text-sm font-semibold text-foreground group-hover:text-gold transition mb-1 line-clamp-2">
+                  <h3 className={`text-sm font-semibold text-foreground group-hover:text-gold transition mb-1 line-clamp-2 ${isSuperseded ? 'line-through opacity-60' : ''}`}>
                     {r.title}
                   </h3>
                   <div
@@ -310,7 +317,8 @@ export function SearchView({ initialQ, initialType }: { readonly initialQ?: stri
                     dangerouslySetInnerHTML={highlightSnippet(r.snippet)}
                   />
                 </div>
-              ))}
+                );
+              })}
             </ResultGroup>
           )}
 

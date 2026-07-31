@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, BookOpen, ExternalLink, Filter } from 'lucide-react';
+import { Search, BookOpen, ExternalLink, Filter, Scale, ChevronRight, Building2, FileText } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,8 @@ interface LawDetailData {
   sourceUrl: string | null;
   notes: string | null;
   krisdikaSysid: string | null;
+  lawType: string | null;
+  lawGroup: string | null;
   lawGoThId: string | null;
   sections: Array<{
     sectionId: number;
@@ -31,6 +33,13 @@ interface LawDetailData {
     isCancelled: number;
     chapter: string | null;
     notes: string | null;
+  }>;
+  relatedJudgments?: Array<{
+    judgmentId: number;
+    judgmentCode: string;
+    dekaNo: string | null;
+    year: string | null;
+    topic: string | null;
   }>;
 }
 
@@ -78,6 +87,18 @@ export function LawView({ lawId }: { readonly lawId: number }) {
                   {law.isLaborLaw === 1 && (
                     <Badge variant="outline" className="badge-labor">กฎหมายแรงงาน</Badge>
                   )}
+                  {law.lawType && (
+                    <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                      <FileText className="h-2.5 w-2.5 mr-1" />
+                      {law.lawType}
+                    </Badge>
+                  )}
+                  {law.lawGroup && (
+                    <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                      <Building2 className="h-2.5 w-2.5 mr-1" />
+                      {law.lawGroup}
+                    </Badge>
+                  )}
                   {law.year && <Badge variant="outline" className="badge-gold">พ.ศ. {law.year}</Badge>}
                   <Badge variant="outline" className="border-border/60 text-muted-foreground">
                     {law.category}
@@ -108,7 +129,17 @@ export function LawView({ lawId }: { readonly lawId: number }) {
                   {law.sections.filter(s => s.isLaborRelated === 1).length}
                 </span>
               </div>
-              {law.sourceUrl && (
+              {law.krisdikaSysid && (
+                <a
+                  href={`https://www.krisdika.go.th/librarian/get?sysid=${law.krisdikaSysid}&ext=htm`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto inline-flex items-center gap-1 text-xs text-gold hover:underline"
+                >
+                  ดูที่กฤษฎีกา <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+              {!law.krisdikaSysid && law.sourceUrl && (
                 <a
                   href={law.sourceUrl}
                   target="_blank"
@@ -153,6 +184,52 @@ export function LawView({ lawId }: { readonly lawId: number }) {
               {visibleSections.map(s => (
                 <SectionCard key={s.sectionId} section={s} lawNameTh={law.lawNameTh} />
               ))}
+            </div>
+          )}
+
+          {/* Related Judgments (via cross_references — judgments that cite this law via templates) */}
+          {law.relatedJudgments && law.relatedJudgments.length > 0 && (
+            <div className="mt-10">
+              <h2 className="flex items-center gap-2 text-lg font-bold mb-4">
+                <Scale className="h-5 w-5 text-gold" />
+                คำพิพากษาฎีกาที่เกี่ยวข้อง
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({law.relatedJudgments.length})
+                </span>
+              </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                ฎีกาที่อ้างอิงกฎหมายนี้ผ่านเทมเพลตเอกสาร (cross-references)
+              </p>
+              <div className="space-y-3">
+                {law.relatedJudgments.map(j => (
+                  <button
+                    type="button"
+                    key={j.judgmentId}
+                    onClick={() => navigate({ name: 'judgment', judgmentId: j.judgmentId })}
+                    className="card-premium rounded-xl p-4 w-full text-left group cursor-pointer"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0">
+                        <div className="flex h-10 min-w-10 px-2 items-center justify-center rounded-lg bg-gold/10 border border-gold/20">
+                          <Scale className="h-4 w-4 text-gold" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-gold">{j.dekaNo || j.judgmentCode}</span>
+                          {j.year && (
+                            <span className="text-[10px] text-muted-foreground">ปี {j.year}</span>
+                          )}
+                        </div>
+                        <p className="text-sm prose-thai text-foreground/90 line-clamp-2">
+                          {j.topic || '(ไม่ระบุประเด็น)'}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-gold group-hover:translate-x-1 transition flex-shrink-0" />
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </>

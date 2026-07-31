@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+// @ts-expect-error - PrismaLibSQL is exported at runtime but TS types lag in adapter-libsql 6.x
 import { PrismaLibSQL } from '@prisma/adapter-libsql'
 
 const globalForPrisma = globalThis as unknown as {
