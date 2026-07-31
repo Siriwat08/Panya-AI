@@ -140,7 +140,7 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
 
           {/* Live chat demo card with typewriter */}
           <div className="mt-12 max-w-2xl mx-auto">
-            <LiveChatDemo typedQ={typedQ} onAskClick={() => navigate({ name: 'ask' })} />
+            <LiveChatDemo typedQ={typedQ} qIdx={qIdx} onAskClick={() => navigate({ name: 'ask' })} />
           </div>
 
           {/* Stats Strip */}
@@ -158,7 +158,7 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
 }
 
 /* ---------- Live Chat Demo (animated preview) ---------- */
-function LiveChatDemo({ typedQ, onAskClick }: { readonly typedQ: string; readonly onAskClick: () => void }) {
+function LiveChatDemo({ typedQ, qIdx, onAskClick }: { readonly typedQ: string; readonly qIdx: number; readonly onAskClick: () => void }) {
   // Randomize demo content based on typedQ hash
   const demoVariants = [
     {
@@ -198,7 +198,9 @@ function LiveChatDemo({ typedQ, onAskClick }: { readonly typedQ: string; readonl
       ],
     },
   ];
-  const variantIdx = typedQ.length % demoVariants.length;
+  // Use qIdx (question index) for variant — NOT typedQ.length
+  // This way demo content only changes when the QUESTION changes, not every keystroke
+  const variantIdx = qIdx % demoVariants.length;
   const demo = demoVariants[variantIdx];
   return (
     <div

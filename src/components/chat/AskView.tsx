@@ -45,7 +45,18 @@ const AGENT_STEPS = [
 
 export function AskView() {
   const { navigate } = useNavigation();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Restore chat state from sessionStorage (saved before navigating to section/judgment)
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = sessionStorage.getItem('panya_chat_messages');
+      if (saved) {
+        sessionStorage.removeItem('panya_chat_messages');
+        return JSON.parse(saved);
+      }
+    } catch {}
+    return [];
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [laborOnly, setLaborOnly] = useState(true);
@@ -206,6 +217,13 @@ export function AskView() {
     const params = new URLSearchParams(url.split('?')[1] || '');
     const view = params.get('view');
     const id = params.get('id');
+    // Save chat state to sessionStorage before navigating away
+    if (messages.length > 0) {
+      try {
+        sessionStorage.setItem('panya_chat_messages', JSON.stringify(messages));
+        sessionStorage.setItem('panya_chat_input', input);
+      } catch {}
+    }
     if (view === 'section' && id) navigate({ name: 'section', sectionId: Number.parseInt(id, 10) });
     else if (view === 'judgment' && id) navigate({ name: 'judgment', judgmentId: Number.parseInt(id, 10) });
   };
