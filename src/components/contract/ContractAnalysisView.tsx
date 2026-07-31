@@ -1,8 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { ArrowLeft, Shield, AlertTriangle, CheckCircle, Loader2, FileSearch } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, Loader2, FileSearch } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
+import { BackButton } from '@/components/common/BackButton';
 
 const SAMPLE = `นายจ้างมีสิทธิเลิกจ้างได้ตลอดเวลาโดยไม่ต้องบอกกล่าวล่วงหน้า
 ลูกจ้างตกลงทำงานล่วงเวลาโดยไม่ขอค่าล่วงเวลา
@@ -52,9 +53,7 @@ export function ContractAnalysisView() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8">
-      <Button type="button" variant="ghost" size="sm" onClick={() => navigate({ name: 'home' })} className="mb-4">
-        <ArrowLeft className="h-4 w-4" /> กลับ
-      </Button>
+      <BackButton label="ย้อนกลับ" />
       <div className="flex items-center gap-2 mb-2">
         <FileSearch className="h-6 w-6 text-gold" />
         <h1 className="text-2xl sm:text-3xl font-bold" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>วิเคราะห์สัญญา</h1>

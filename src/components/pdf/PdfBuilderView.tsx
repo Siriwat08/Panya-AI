@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Check, Download, Wand2 } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { BackButton } from '@/components/common/BackButton';
 
 interface Template { templateId: number; templateCode: string; title: string; category: string; }
 const CATS: Record<string,string> = { labor:'แรงงาน', accounting:'บัญชี', contracts:'สัญญา', court:'ศาล', sso:'สปส.' };
@@ -52,7 +53,7 @@ export function PdfBuilderView({ initialTemplateId }: { readonly initialTemplate
               <div className="text-[10px] uppercase tracking-wider text-gold mb-1">PDF Builder</div>
               <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>สร้างเอกสารกฎหมาย</h1>
             </div>
-            <Button type="button" variant="ghost" size="sm" onClick={() => navigate({ name: 'home' })}><ArrowLeft className="h-4 w-4" /> กลับ</Button>
+            <BackButton label="กลับ" />
           </div>
           {/* Stepper */}
           <div className="flex items-center pb-5">

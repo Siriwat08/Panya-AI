@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Search, BookOpen, ExternalLink, Filter } from 'lucide-react';
+import { Search, BookOpen, ExternalLink, Filter } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { BackButton } from '@/components/common/BackButton';
 import { BookmarkButton } from '@/components/common/BookmarkButton';
 
 interface LawDetailData {
@@ -62,15 +63,7 @@ export function LawView({ lawId }: { readonly lawId: number }) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate({ name: 'laws' })}
-        className="mb-4 text-muted-foreground hover:text-foreground gap-1"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        กลับสู่รายการกฎหมาย
-      </Button>
+      <BackButton label="ย้อนกลับ" />
 
       {loading && <div className="text-center py-20 text-muted-foreground">กำลังโหลด…</div>}
       {error && <div className="text-center py-20 text-destructive">เกิดข้อผิดพลาด: {error}</div>}

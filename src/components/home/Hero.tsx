@@ -51,7 +51,7 @@ export function Hero({ stats }: { readonly stats: DashboardStats | null }) {
         clearInterval(typeInt);
         setTimeout(() => setQIdx((qIdx + 1) % TYPEWRITER_QUESTIONS.length), 2800);
       }
-    }, 32);
+    }, 65);
     return () => clearInterval(typeInt);
   }, [qIdx]);
 

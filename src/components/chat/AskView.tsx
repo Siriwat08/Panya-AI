@@ -211,7 +211,7 @@ export function AskView() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden overflow-x-hidden">
       {/* MAIN chat column */}
       <div className="flex flex-col bg-background transition-all duration-300 flex-1">
         {/* Header */}
@@ -262,7 +262,7 @@ export function AskView() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6 min-w-0">
           {messages.length === 0 && !loading && (
             <div className="max-w-2xl mx-auto">
               <div className="card-premium rounded-2xl p-8 text-center">
@@ -441,7 +441,7 @@ function MessageBubble({
               : 'card-premium rounded-bl-md'
           }`}
         >
-          <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed overflow-x-auto break-words">
+          <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed break-words overflow-hidden">
             {renderContent(msg.content)}
           </div>
 
