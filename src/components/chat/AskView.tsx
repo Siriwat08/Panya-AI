@@ -233,7 +233,7 @@ export function AskView() {
       {/* MAIN chat column */}
       <div className="flex flex-col bg-background transition-all duration-300 flex-1">
         {/* Header */}
-        <div className="border-b border-border/60 bg-card-soft/30 px-6 py-4 flex items-center justify-between">
+        <div className="border-b border-border/60 bg-card-soft/30 px-4 sm:px-6 py-4 flex items-center justify-between overflow-hidden">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}>
@@ -280,7 +280,7 @@ export function AskView() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6 min-w-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6 min-w-0">
           {messages.length === 0 && !loading && (
             <div className="max-w-2xl mx-auto">
               <div className="card-premium rounded-2xl p-8 text-center">
@@ -315,7 +315,7 @@ export function AskView() {
             </div>
           )}
 
-          <div className="max-w-3xl mx-auto space-y-4">
+          <div className="max-w-3xl mx-auto space-y-4 min-w-0">
             {messages.map((msg, i) => {
               const isLastAi = i === messages.length - 1 && msg.role === 'assistant';
               return (
@@ -438,7 +438,7 @@ function MessageBubble({
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[85%] ${isUser ? '' : 'w-full min-w-0'}`}>
+      <div className={`max-w-[92%] sm:max-w-[85%] ${isUser ? '' : 'w-full min-w-0 overflow-hidden'}`}>
         {!isUser && (
           <div className="flex items-center gap-2 mb-1.5">
             <button type="button" onClick={onMascotClick} className="flex-shrink-0">
@@ -459,7 +459,7 @@ function MessageBubble({
               : 'card-premium rounded-bl-md'
           }`}
         >
-          <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed break-words overflow-hidden">
+          <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed break-words overflow-hidden w-full">
             {renderContent(msg.content)}
           </div>
 
