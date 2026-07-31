@@ -175,7 +175,7 @@ export async function GET(req: NextRequest) {
     try {
       const rows = await db.$queryRaw<any[]>(Prisma.sql`
         SELECT r.regulation_id, r.regulation_code, r.title, r.category,
-               r.full_text, r.is_repealed, r.repeal_status
+               r.full_text, r.is_repealed, r.repeal_status, r.year
         FROM regulations_fts_v2
         JOIN regulations r ON r.regulation_id = regulations_fts_v2.rowid
         WHERE regulations_fts_v2 MATCH ${ftsQuery}
@@ -192,6 +192,7 @@ export async function GET(req: NextRequest) {
         snippet: r.full_text?.slice(0, 200) || '',
         isRepealed: r.is_repealed === 1,
         repealStatus: r.repeal_status,
+        year: r.year || null,
       }));
     } catch (e) {
       console.error('Search regulation FTS failed:', e);

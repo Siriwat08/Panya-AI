@@ -51,6 +51,9 @@ interface SearchResults {
     title: string;
     category: string | null;
     snippet: string;
+    isRepealed?: boolean;
+    repealStatus?: string;
+    year?: string | null;
   }>;
   templates: Array<{
     type: 'template';
@@ -283,6 +286,19 @@ export function SearchView({ initialQ, initialType }: { readonly initialQ?: stri
                       <Badge variant="outline" className="badge-gold text-[10px]">{r.regulationCode}</Badge>
                       {r.category && (
                         <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground">{r.category}</Badge>
+                      )}
+                      {r.year && (
+                        <span className="text-[10px] text-muted-foreground">พ.ศ. {r.year}</span>
+                      )}
+                      {r.repealStatus === 'repealed' && (
+                        <Badge variant="outline" className="text-[10px] border-red-500/40 text-red-500 bg-red-500/10">
+                          ยกเลิกแล้ว
+                        </Badge>
+                      )}
+                      {r.repealStatus === 'active' && (
+                        <Badge variant="outline" className="text-[10px] border-green-500/40 text-green-600 bg-green-500/10">
+                          ใช้บังคับ
+                        </Badge>
                       )}
                     </div>
                   </div>

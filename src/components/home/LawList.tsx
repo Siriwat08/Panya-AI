@@ -160,10 +160,19 @@ function LawCard({ law, onClick }: { readonly law: LawSummary; readonly onClick:
       </h3>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{law.year ? `พ.ศ. ${law.year}` : '—'}</span>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
           <span>{law.sectionCount} มาตรา</span>
           {law.laborSectionCount > 0 && (
             <span className="text-gold">{law.laborSectionCount} แรงงาน</span>
+          )}
+          {law.status && law.status !== 'complete' && (
+            <Badge variant="outline" className={`text-[9px] ${
+              law.status === 'repealed' ? 'border-red-500/40 text-red-500 bg-red-500/10' :
+              law.status === 'amended' ? 'border-blue-500/40 text-blue-500 bg-blue-500/10' :
+              'border-amber-500/40 text-amber-600 bg-amber-500/10'
+            }`}>
+              {law.status === 'repealed' ? 'ยกเลิก' : law.status === 'amended' ? 'แก้ไขแล้ว' : law.status}
+            </Badge>
           )}
         </div>
       </div>
