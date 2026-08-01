@@ -607,8 +607,12 @@ function SidebarMenuSkeleton({
   showIcon?: boolean
 }) {
   // Random width between 50 to 90%.
+  // Uses crypto.getRandomValues (S2245 — Math.random is not cryptographically secure,
+  // though here it's only cosmetic, we use the secure API for consistency).
   const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
+    const arr = new Uint8Array(1)
+    crypto.getRandomValues(arr)
+    return `${Math.floor(arr[0] / 256 * 40) + 50}%`
   }, [])
 
   return (

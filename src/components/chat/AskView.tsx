@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Send, Loader2, Sparkles, ChevronRight, Trash2, Shield, X, ExternalLink, BookOpen, Scale, Bookmark, RotateCcw } from 'lucide-react';
+import { Send, ChevronRight, Shield, X, ExternalLink, BookOpen, Scale, RotateCcw } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePersona } from '@/components/onboarding/usePersona';
-import { PERSONAS } from '@/lib/persona';
 
 interface Citation {
   index: number;

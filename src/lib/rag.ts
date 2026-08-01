@@ -68,6 +68,26 @@ function extractKeywords(query: string): string[] {
   return found.length > 0 ? found : tokens;
 }
 
+/** Run a FTS5 query, returning [] on error (logged). Reduces cognitive complexity. */
+async function tryFts(label: string, sql: Prisma.Sql): Promise<any[]> {
+  try {
+    return await db.$queryRaw<any[]>(sql);
+  } catch (e) {
+    console.error(`RAG ${label} FTS:`, e);
+    return [];
+  }
+}
+
+/** Run a Prisma findMany as LIKE fallback, returning [] on error. */
+async function tryFindMany<T>(label: string, fn: () => Promise<T[]>): Promise<T[]> {
+  try {
+    return await fn();
+  } catch (e) {
+    console.error(`RAG ${label} LIKE fallback:`, e);
+    return [];
+  }
+}
+
 export async function retrieveRelevant(
   query: string,
   opts: { topK?: number; laborOnly?: boolean } = {}
@@ -76,151 +96,166 @@ export async function retrieveRelevant(
   const ftsQuery = buildFtsQuery(query);
   if (!ftsQuery) return [];
 
-  let sectionHits: any[] = [];
-  let judgmentHits: any[] = [];
-  let regulationHits: any[] = [];
-  let templateHits: any[] = [];
+  const laborFilter = opts.laborOnly;
 
   // ============ FTS5 across 4 sources ============
-  try {
-    sectionHits = await db.$queryRaw<any[]>(Prisma.sql`
-      SELECT s.section_id as chunk_id, 'law_section' as source_type, s.section_id as source_id,
-             s.law_id, s.section_id, NULL as judgment_id, NULL as regulation_id, NULL as template_id,
-             s.section_text as chunk_text,
-             l.title as law_title, l.law_code, s.section_number, s.section_number_thai,
-             NULL as deka_no, NULL as case_year, NULL as case_type, NULL as judgment_topic,
-             NULL as regulation_title, NULL as regulation_code,
-             NULL as template_title, NULL as template_code, NULL as template_category,
-             l.category
-      FROM law_sections_fts_v2
-      JOIN law_sections s ON s.section_id = law_sections_fts_v2.rowid
-      JOIN laws l ON l.law_id = s.law_id
-      WHERE law_sections_fts_v2 MATCH ${ftsQuery}
-        ${opts.laborOnly ? Prisma.sql`AND (s.is_labor_related = 1 OR l.category = 'labor')` : Prisma.empty}
-      ORDER BY rank
-      LIMIT ${topK}
-    `);
-  } catch (e) { console.error('RAG section FTS:', e); }
+  const sectionHits = await tryFts('section', Prisma.sql`
+    SELECT s.section_id as chunk_id, 'law_section' as source_type, s.section_id as source_id,
+           s.law_id, s.section_id, NULL as judgment_id, NULL as regulation_id, NULL as template_id,
+           s.section_text as chunk_text,
+           l.title as law_title, l.law_code, s.section_number, s.section_number_thai,
+           NULL as deka_no, NULL as case_year, NULL as case_type, NULL as judgment_topic,
+           NULL as regulation_title, NULL as regulation_code,
+           NULL as template_title, NULL as template_code, NULL as template_category,
+           l.category
+    FROM law_sections_fts_v2
+    JOIN law_sections s ON s.section_id = law_sections_fts_v2.rowid
+    JOIN laws l ON l.law_id = s.law_id
+    WHERE law_sections_fts_v2 MATCH ${ftsQuery}
+      ${laborFilter ? Prisma.sql`AND (s.is_labor_related = 1 OR l.category = 'labor')` : Prisma.empty}
+    ORDER BY rank
+    LIMIT ${topK}
+  `);
 
-  try {
-    judgmentHits = await db.$queryRaw<any[]>(Prisma.sql`
-      SELECT j.judgment_id as chunk_id, 'judgment' as source_type, j.judgment_id as source_id,
-             NULL as law_id, NULL as section_id, j.judgment_id, NULL as regulation_id, NULL as template_id,
-             (COALESCE(j.fact,'') || ' ' || COALESCE(j.issue,'') || ' ' || COALESCE(j.ruling,'')) as chunk_text,
-             NULL as law_title, NULL as law_code, NULL as section_number, NULL as section_number_thai,
-             j.deka_no, j.year as case_year, j.case_type, j.topic as judgment_topic,
-             NULL as regulation_title, NULL as regulation_code,
-             NULL as template_title, NULL as template_code, NULL as template_category,
-             NULL as category
-      FROM judgments_fts_v2
-      JOIN judgments j ON j.judgment_id = judgments_fts_v2.rowid
-      WHERE judgments_fts_v2 MATCH ${ftsQuery}
-        ${opts.laborOnly ? Prisma.sql`AND j.case_type = 'แรงงาน'` : Prisma.empty}
-      ORDER BY rank
-      LIMIT ${Math.max(3, Math.floor(topK / 2))}
-    `);
-  } catch (e) { console.error('RAG judgment FTS:', e); }
+  const judgmentHits = await tryFts('judgment', Prisma.sql`
+    SELECT j.judgment_id as chunk_id, 'judgment' as source_type, j.judgment_id as source_id,
+           NULL as law_id, NULL as section_id, j.judgment_id, NULL as regulation_id, NULL as template_id,
+           (COALESCE(j.fact,'') || ' ' || COALESCE(j.issue,'') || ' ' || COALESCE(j.ruling,'')) as chunk_text,
+           NULL as law_title, NULL as law_code, NULL as section_number, NULL as section_number_thai,
+           j.deka_no, j.year as case_year, j.case_type, j.topic as judgment_topic,
+           NULL as regulation_title, NULL as regulation_code,
+           NULL as template_title, NULL as template_code, NULL as template_category,
+           NULL as category
+    FROM judgments_fts_v2
+    JOIN judgments j ON j.judgment_id = judgments_fts_v2.rowid
+    WHERE judgments_fts_v2 MATCH ${ftsQuery}
+      ${laborFilter ? Prisma.sql`AND j.case_type = 'แรงงาน'` : Prisma.empty}
+    ORDER BY rank
+    LIMIT ${Math.max(3, Math.floor(topK / 2))}
+  `);
 
-  try {
-    regulationHits = await db.$queryRaw<any[]>(Prisma.sql`
-      SELECT r.regulation_id as chunk_id, 'regulation' as source_type, r.regulation_id as source_id,
-             NULL as law_id, NULL as section_id, NULL as judgment_id, r.regulation_id, NULL as template_id,
-             r.full_text as chunk_text,
-             NULL as law_title, NULL as law_code, NULL as section_number, NULL as section_number_thai,
-             NULL as deka_no, NULL as case_year, NULL as case_type, NULL as judgment_topic,
-             r.title as regulation_title, r.regulation_code,
-             NULL as template_title, NULL as template_code, NULL as template_category,
-             r.category
-      FROM regulations_fts_v2
-      JOIN regulations r ON r.regulation_id = regulations_fts_v2.rowid
-      WHERE regulations_fts_v2 MATCH ${ftsQuery}
-      ORDER BY rank
-      LIMIT ${Math.max(2, Math.floor(topK / 3))}
-    `);
-  } catch (e) { console.error('RAG regulation FTS:', e); }
+  const regulationHits = await tryFts('regulation', Prisma.sql`
+    SELECT r.regulation_id as chunk_id, 'regulation' as source_type, r.regulation_id as source_id,
+           NULL as law_id, NULL as section_id, NULL as judgment_id, r.regulation_id, NULL as template_id,
+           r.full_text as chunk_text,
+           NULL as law_title, NULL as law_code, NULL as section_number, NULL as section_number_thai,
+           NULL as deka_no, NULL as case_year, NULL as case_type, NULL as judgment_topic,
+           r.title as regulation_title, r.regulation_code,
+           NULL as template_title, NULL as template_code, NULL as template_category,
+           r.category
+    FROM regulations_fts_v2
+    JOIN regulations r ON r.regulation_id = regulations_fts_v2.rowid
+    WHERE regulations_fts_v2 MATCH ${ftsQuery}
+    ORDER BY rank
+    LIMIT ${Math.max(2, Math.floor(topK / 3))}
+  `);
 
-  try {
-    templateHits = await db.$queryRaw<any[]>(Prisma.sql`
-      SELECT t.template_id as chunk_id, 'contract_template' as source_type, t.template_id as source_id,
-             NULL as law_id, NULL as section_id, NULL as judgment_id, NULL as regulation_id, t.template_id,
-             t.full_text as chunk_text,
-             NULL as law_title, NULL as law_code, NULL as section_number, NULL as section_number_thai,
-             NULL as deka_no, NULL as case_year, NULL as case_type, NULL as judgment_topic,
-             NULL as regulation_title, NULL as regulation_code,
-             t.title as template_title, t.template_code, t.category as template_category,
-             NULL as category
-      FROM contract_templates_fts_v2
-      JOIN contract_templates t ON t.template_id = contract_templates_fts_v2.rowid
-      WHERE contract_templates_fts_v2 MATCH ${ftsQuery}
-      ORDER BY rank
-      LIMIT ${Math.max(2, Math.floor(topK / 3))}
-    `);
-  } catch (e) { console.error('RAG template FTS:', e); }
+  const templateHits = await tryFts('template', Prisma.sql`
+    SELECT t.template_id as chunk_id, 'contract_template' as source_type, t.template_id as source_id,
+           NULL as law_id, NULL as section_id, NULL as judgment_id, NULL as regulation_id, t.template_id,
+           t.full_text as chunk_text,
+           NULL as law_title, NULL as law_code, NULL as section_number, NULL as section_number_thai,
+           NULL as deka_no, NULL as case_year, NULL as case_type, NULL as judgment_topic,
+           NULL as regulation_title, NULL as regulation_code,
+           t.title as template_title, t.template_code, t.category as template_category,
+           NULL as category
+    FROM contract_templates_fts_v2
+    JOIN contract_templates t ON t.template_id = contract_templates_fts_v2.rowid
+    WHERE contract_templates_fts_v2 MATCH ${ftsQuery}
+    ORDER BY rank
+    LIMIT ${Math.max(2, Math.floor(topK / 3))}
+  `);
 
   // ============ LIKE fallback if FTS returned too few ============
-  if (sectionHits.length < 3) {
-    const keywords = extractKeywords(query);
-    const orClauses = keywords.map(k => ({ sectionText: { contains: k } }));
-    if (orClauses.length > 0) {
-      try {
-        const likeHits = await db.lawSection.findMany({
-          where: {
-            AND: [
-              opts.laborOnly
-                ? { OR: [{ isLaborRelated: 1 }, { law: { category: 'labor' } }] }
-                : {},
-              { OR: orClauses as any },
-            ],
-          } as any,
-          take: topK - sectionHits.length,
-          include: { law: true },
-        });
-        const existing = new Set(sectionHits.map(h => h.chunk_id));
-        for (const r of likeHits) {
-          if (existing.has(r.sectionId)) continue;
-          sectionHits.push({
-            chunk_id: r.sectionId, source_type: 'law_section', source_id: r.sectionId,
-            law_id: r.lawId, section_id: r.sectionId, judgment_id: null, regulation_id: null, template_id: null,
-            chunk_text: r.sectionText,
-            law_title: r.law.title, law_code: r.law.lawCode,
-            section_number: r.sectionNumber, section_number_thai: r.sectionNumberThai,
-            category: r.law.category,
-          });
-        }
-      } catch (e) { console.error('RAG LIKE fallback sections:', e); }
-    }
-  }
+  const sectionsFinal = sectionHits.length < 3
+    ? await fillSectionsLikeFallback(query, laborFilter, topK, sectionHits)
+    : sectionHits;
 
-  if (judgmentHits.length < 2) {
-    const keywords = extractKeywords(query);
-    const orClauses = keywords.map(k => ({ OR: [{ fact: { contains: k } }, { ruling: { contains: k } }] }));
-    if (orClauses.length > 0) {
-      try {
-        const likeHits = await db.judgment.findMany({
-          where: {
-            AND: [
-              opts.laborOnly ? { caseType: 'แรงงาน' } : {},
-              { OR: orClauses as any },
-            ],
-          } as any,
-          take: Math.max(3, Math.floor(topK / 2)) - judgmentHits.length,
-        });
-        const existing = new Set(judgmentHits.map(h => h.chunk_id));
-        for (const r of likeHits) {
-          if (existing.has(r.judgmentId)) continue;
-          judgmentHits.push({
-            chunk_id: r.judgmentId, source_type: 'judgment', source_id: r.judgmentId,
-            law_id: null, section_id: null, judgment_id: r.judgmentId, regulation_id: null, template_id: null,
-            chunk_text: `${r.fact || ''} ${r.issue || ''} ${r.ruling || ''}`.trim(),
-            deka_no: r.dekaNo, case_year: r.year, case_type: r.caseType, judgment_topic: r.topic,
-          });
-        }
-      } catch (e) { console.error('RAG LIKE fallback judgments:', e); }
-    }
-  }
+  const judgmentsFinal = judgmentHits.length < 2
+    ? await fillJudgmentsLikeFallback(query, laborFilter, topK, judgmentHits)
+    : judgmentHits;
 
   // ============ Combine + dedupe ============
-  const all = [...sectionHits, ...judgmentHits, ...regulationHits, ...templateHits];
+  return dedupeHits([...sectionsFinal, ...judgmentsFinal, ...regulationHits, ...templateHits], topK);
+}
+
+/** LIKE fallback for sections when FTS returns < 3 hits. */
+async function fillSectionsLikeFallback(
+  query: string,
+  laborOnly: boolean | undefined,
+  topK: number,
+  existing: any[]
+): Promise<any[]> {
+  const keywords = extractKeywords(query);
+  const orClauses = keywords.map(k => ({ sectionText: { contains: k } }));
+  if (orClauses.length === 0) return existing;
+
+  const likeHits = await tryFindMany('sections', () => db.lawSection.findMany({
+    where: {
+      AND: [
+        laborOnly
+          ? { OR: [{ isLaborRelated: 1 }, { law: { category: 'labor' } }] }
+          : {},
+        { OR: orClauses as any },
+      ],
+    } as any,
+    take: topK - existing.length,
+    include: { law: true },
+  }));
+
+  const seen = new Set(existing.map(h => h.chunk_id));
+  for (const r of likeHits) {
+    if (seen.has(r.sectionId)) continue;
+    seen.add(r.sectionId);
+    existing.push({
+      chunk_id: r.sectionId, source_type: 'law_section', source_id: r.sectionId,
+      law_id: r.lawId, section_id: r.sectionId, judgment_id: null, regulation_id: null, template_id: null,
+      chunk_text: r.sectionText,
+      law_title: r.law.title, law_code: r.law.lawCode,
+      section_number: r.sectionNumber, section_number_thai: r.sectionNumberThai,
+      category: r.law.category,
+    });
+  }
+  return existing;
+}
+
+/** LIKE fallback for judgments when FTS returns < 2 hits. */
+async function fillJudgmentsLikeFallback(
+  query: string,
+  laborOnly: boolean | undefined,
+  topK: number,
+  existing: any[]
+): Promise<any[]> {
+  const keywords = extractKeywords(query);
+  const orClauses = keywords.map(k => ({ OR: [{ fact: { contains: k } }, { ruling: { contains: k } }] }));
+  if (orClauses.length === 0) return existing;
+
+  const likeHits = await tryFindMany('judgments', () => db.judgment.findMany({
+    where: {
+      AND: [
+        laborOnly ? { caseType: 'แรงงาน' } : {},
+        { OR: orClauses as any },
+      ],
+    } as any,
+    take: Math.max(3, Math.floor(topK / 2)) - existing.length,
+  }));
+
+  const seen = new Set(existing.map(h => h.chunk_id));
+  for (const r of likeHits) {
+    if (seen.has(r.judgmentId)) continue;
+    seen.add(r.judgmentId);
+    existing.push({
+      chunk_id: r.judgmentId, source_type: 'judgment', source_id: r.judgmentId,
+      law_id: null, section_id: null, judgment_id: r.judgmentId, regulation_id: null, template_id: null,
+      chunk_text: `${r.fact || ''} ${r.issue || ''} ${r.ruling || ''}`.trim(),
+      deka_no: r.dekaNo, case_year: r.year, case_type: r.caseType, judgment_topic: r.topic,
+    });
+  }
+  return existing;
+}
+
+/** Dedupe combined hits by chunk_id and map to RagHit[]. Returns up to topK. */
+function dedupeHits(all: any[], topK: number): RagHit[] {
   const seen = new Set<number>();
   const deduped: RagHit[] = [];
   for (const h of all) {

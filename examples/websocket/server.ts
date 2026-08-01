@@ -1,4 +1,5 @@
 import { createServer } from 'http'
+import { randomBytes } from 'crypto'
 import { Server } from 'socket.io'
 
 const httpServer = createServer()
@@ -28,7 +29,9 @@ interface Message {
 
 const users = new Map<string, User>()
 
-const generateMessageId = () => Math.random().toString(36).substr(2, 9)
+// Use cryptographically secure random for message IDs (S2245 — Math.random is not secure).
+// 9 bytes → 12 base64url chars, sufficient uniqueness for chat message IDs.
+const generateMessageId = () => randomBytes(9).toString('base64url')
 
 const createSystemMessage = (content: string): Message => ({
   id: generateMessageId(),

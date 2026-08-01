@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Scale, Sparkles, BookOpen, Gavel, Shield, Check, FileText, FileSearch } from 'lucide-react';
+import { ArrowRight, Sparkles, BookOpen, Shield, Check, FileText, FileSearch } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { usePersona } from '@/components/onboarding/usePersona';
 import type { DashboardStats } from '@/lib/types';

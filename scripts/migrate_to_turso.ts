@@ -5,8 +5,8 @@
  */
 
 import { createClient } from '@libsql/client'
-import { readFileSync, existsSync } from 'fs'
-import { execSync } from 'child_process'
+import { existsSync } from 'fs'
+import { execFileSync } from 'child_process'
 
 const LOCAL_DB = process.argv[2] || '/home/z/my-project/db/custom.db'
 const TURSO_URL = process.argv[3] || ''
@@ -40,9 +40,12 @@ try {
 // Step 1: Use Python to dump data to JSON per table (faster + cleaner than SQL dump)
 console.log('\n📤 Extracting data from local SQLite via Python...')
 
+// Pass the DB path via environment variable to avoid shell injection (S8701).
+// The Python script reads it from os.environ, so no string interpolation needed.
 const pythonScript = `
-import sqlite3, json, sys
-conn = sqlite3.connect('${LOCAL_DB}')
+import sqlite3, json, sys, os
+db_path = os.environ['PANYA_LOCAL_DB']
+conn = sqlite3.connect(db_path)
 conn.row_factory = sqlite3.Row
 tables = ['sources', 'laws', 'law_sections', 'case_judgments', 'case_law_links', 'ingestion_log', 'rag_chunks']
 out = {}
@@ -62,9 +65,12 @@ print(json.dumps(out, default=str, ensure_ascii=False))
 
 let data: any
 try {
-  const result = execSync(`python3 -c '${pythonScript.replace(/'/g, "'\\''")}'`, {
+  // execFileSync with input — no shell, no command injection possible (S8701).
+  const result = execFileSync('python3', ['-c', pythonScript], {
     maxBuffer: 500 * 1024 * 1024, // 500 MB
     encoding: 'utf-8',
+    input: '',
+    env: { ...process.env, PANYA_LOCAL_DB: LOCAL_DB },
   })
   data = JSON.parse(result)
 } catch (e: any) {

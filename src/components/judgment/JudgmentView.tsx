@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink, AlertTriangle, Scale, ChevronRight, BookOpen, Tag, Gavel } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BookmarkButton } from '@/components/common/BookmarkButton';
 import { BackButton } from '@/components/common/BackButton';
