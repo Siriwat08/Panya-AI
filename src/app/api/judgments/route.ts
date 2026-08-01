@@ -14,101 +14,137 @@ function parseJsonArray(raw: string | null): string[] {
   }
 }
 
+/** Resolve category query param to Thai case_type. Returns undefined if no filter. */
+function resolveCategoryFilter(category: string | null): string | undefined {
+  if (!category) return undefined;
+  if (category === 'labor') return 'แรงงาน';
+  if (category === 'criminal') return 'อาญา';
+  return category;
+}
+
+/** Fetch related sections for a judgment via cross_references table. */
+async function fetchRelatedSections(judgmentId: number): Promise<any[]> {
+  try {
+    const refs = await db.crossReference.findMany({
+      where: { sourceType: 'judgment', sourceId: judgmentId, targetType: 'law_section' },
+      take: 30,
+    });
+    const sectionIds = refs.map(r => r.targetId).filter(Boolean) as number[];
+    if (sectionIds.length === 0) return [];
+
+    const sections = await db.lawSection.findMany({
+      where: { sectionId: { in: sectionIds } },
+      include: { law: true },
+      take: 30,
+    });
+    return sections.map(s => ({
+      sectionId: s.sectionId,
+      lawId: s.lawId,
+      lawNameTh: s.law.title,
+      articleKey: s.sectionNumberThai || `มาตรา ${s.sectionNumber}`,
+      sectionNumber: s.sectionNumber,
+      sectionText: s.sectionText,
+      isLaborRelated: s.isLaborRelated,
+      isCancelled: 0,
+      chapter: s.chapter,
+      notes: s.notes,
+    }));
+  } catch (e) {
+    console.warn('[judgments] cross_references query failed:', e instanceof Error ? e.message : String(e));
+    return [];
+  }
+}
+
+/** Handle GET /api/judgments?id=123 — single judgment detail. */
+async function handleDetail(id: string): Promise<NextResponse> {
+  const judgmentId = Number.parseInt(id, 10);
+  if (Number.isNaN(judgmentId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+
+  const judgment = await db.judgment.findUnique({
+    where: { judgmentId },
+    include: { source: true },
+  });
+  if (!judgment) return NextResponse.json({ error: 'Judgment not found' }, { status: 404 });
+
+  const relatedSections = await fetchRelatedSections(judgmentId);
+
+  return NextResponse.json({
+    judgmentId: judgment.judgmentId,
+    caseNumber: judgment.dekaNo,
+    dekaNo: judgment.dekaNo,
+    caseYear: judgment.year,
+    year: judgment.year,
+    court: 'ศาลฎีกา',
+    category: judgment.caseType,
+    caseType: judgment.caseType,
+    caseTypeGroup: judgment.caseTypeGroup,
+    categoryCode: null,
+    issueNumber: null,
+    lawReferences: judgment.lawsCited,
+    lawsCited: judgment.lawsCited,
+    lawsCitedList: parseJsonArray(judgment.lawsCited),
+    topic: judgment.topic,
+    topics: judgment.topics,
+    topicsList: parseJsonArray(judgment.topics),
+    fact: judgment.fact,
+    decision: judgment.ruling,
+    ruling: judgment.ruling,
+    verdict: judgment.verdict,
+    issue: judgment.issue,
+    title: judgment.topic,
+    sourceId: judgment.sourceId,
+    sourceUrl: judgment.sourceUrl,
+    sourceName: judgment.source?.sourceName ?? null,
+    sourceDescription: judgment.source?.description ?? null,
+    licenseNote: judgment.note,
+    note: judgment.note,
+    fullText: judgment.fullText,
+    relatedSections,
+  });
+}
+
+/** Map judgment DB row to list response object. */
+function mapJudgmentToList(j: any) {
+  return {
+    judgmentId: j.judgmentId,
+    caseNumber: j.dekaNo,
+    dekaNo: j.dekaNo,
+    caseYear: j.year,
+    year: j.year,
+    category: j.caseType,
+    caseType: j.caseType,
+    caseTypeGroup: j.caseTypeGroup,
+    title: j.topic,
+    topic: j.topic,
+    topicsList: parseJsonArray(j.topics),
+    lawsCitedList: parseJsonArray(j.lawsCited),
+    fact: j.fact,
+    decision: j.ruling,
+    ruling: j.ruling,
+    sourceUrl: j.sourceUrl,
+    sourceName: j.source?.sourceName ?? null,
+    licenseNote: j.note,
+    note: j.note,
+  };
+}
+
 // GET /api/judgments              — list (filter by case_type, page)
 // GET /api/judgments?id=123       — judgment detail + related sections
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
-  const category = searchParams.get('category'); // 'แรงงาน' | 'แพ่ง' | etc.
+
+  // Detail mode
+  if (id) return handleDetail(id);
+
+  // List mode
+  const category = searchParams.get('category');
   const page = Number.parseInt(searchParams.get('page') || '1', 10);
   const pageSize = Math.min(Number.parseInt(searchParams.get('pageSize') || '30', 10), 100);
   const skip = (page - 1) * pageSize;
 
-  if (id) {
-    const judgmentId = Number.parseInt(id, 10);
-    if (Number.isNaN(judgmentId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
-
-    const judgment = await db.judgment.findUnique({
-      where: { judgmentId },
-      include: { source: true },
-    });
-    if (!judgment) return NextResponse.json({ error: 'Judgment not found' }, { status: 404 });
-
-    // Related sections via cross_references table
-    let relatedSections: any[] = []
-    try {
-      const refs = await db.crossReference.findMany({
-        where: { sourceType: 'judgment', sourceId: judgmentId, targetType: 'law_section' },
-        take: 30,
-      })
-      const sectionIds = refs.map(r => r.targetId).filter(Boolean) as number[]
-      if (sectionIds.length > 0) {
-        const sections = await db.lawSection.findMany({
-          where: { sectionId: { in: sectionIds } },
-          include: { law: true },
-          take: 30,
-        })
-        relatedSections = sections.map(s => ({
-          sectionId: s.sectionId,
-          lawId: s.lawId,
-          lawNameTh: s.law.title,
-          articleKey: s.sectionNumberThai || `มาตรา ${s.sectionNumber}`,
-          sectionNumber: s.sectionNumber,
-          sectionText: s.sectionText,
-          isLaborRelated: s.isLaborRelated,
-          isCancelled: 0,
-          chapter: s.chapter,
-          notes: s.notes,
-        }))
-      }
-    } catch (e) {
-      // cross_references might be empty — log and continue with empty array
-      console.warn('[judgments] cross_references query failed:', e instanceof Error ? e.message : String(e));
-    }
-
-    return NextResponse.json({
-      judgmentId: judgment.judgmentId,
-      caseNumber: judgment.dekaNo,  // legacy alias
-      dekaNo: judgment.dekaNo,
-      caseYear: judgment.year,  // legacy alias
-      year: judgment.year,
-      court: 'ศาลฎีกา',
-      category: judgment.caseType,
-      caseType: judgment.caseType,
-      caseTypeGroup: judgment.caseTypeGroup,
-      categoryCode: null,
-      issueNumber: null,
-      lawReferences: judgment.lawsCited,  // legacy alias (string)
-      lawsCited: judgment.lawsCited,  // JSON array string
-      lawsCitedList: parseJsonArray(judgment.lawsCited),
-      topic: judgment.topic,
-      topics: judgment.topics,  // JSON array string
-      topicsList: parseJsonArray(judgment.topics),
-      fact: judgment.fact,
-      decision: judgment.ruling,  // legacy alias
-      ruling: judgment.ruling,
-      verdict: judgment.verdict,
-      issue: judgment.issue,
-      title: judgment.topic,
-      sourceId: judgment.sourceId,
-      sourceUrl: judgment.sourceUrl,
-      sourceName: judgment.source?.sourceName ?? null,
-      sourceDescription: judgment.source?.description ?? null,
-      licenseNote: judgment.note,
-      note: judgment.note,
-      fullText: judgment.fullText,
-      relatedSections,
-    });
-  }
-
-  // List mode
-  const where: { caseType?: string } = {};
-  if (category) {
-    // Support both Thai and English category names
-    if (category === 'labor') where.caseType = 'แรงงาน';
-    else if (category === 'criminal') where.caseType = 'อาญา';
-    else where.caseType = category;
-  }
+  const caseType = resolveCategoryFilter(category);
+  const where = caseType ? { caseType } : {};
 
   const [judgments, total] = await Promise.all([
     db.judgment.findMany({
@@ -121,30 +157,8 @@ export async function GET(req: NextRequest) {
     db.judgment.count({ where }),
   ]);
 
-  const result = judgments.map(j => ({
-    judgmentId: j.judgmentId,
-    caseNumber: j.dekaNo,  // legacy alias
-    dekaNo: j.dekaNo,
-    caseYear: j.year,  // legacy alias
-    year: j.year,
-    category: j.caseType,
-    caseType: j.caseType,
-    caseTypeGroup: j.caseTypeGroup,
-    title: j.topic,
-    topic: j.topic,
-    topicsList: parseJsonArray(j.topics),
-    lawsCitedList: parseJsonArray(j.lawsCited),
-    fact: j.fact,
-    decision: j.ruling,  // legacy alias
-    ruling: j.ruling,
-    sourceUrl: j.sourceUrl,
-    sourceName: j.source?.sourceName ?? null,
-    licenseNote: j.note,
-    note: j.note,
-  }));
-
   return NextResponse.json({
-    data: result,
+    data: judgments.map(mapJudgmentToList),
     page,
     pageSize,
     total,

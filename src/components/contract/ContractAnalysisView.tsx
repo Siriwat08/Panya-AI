@@ -102,7 +102,7 @@ export function ContractAnalysisView() {
               <div className="flex items-center gap-2 mb-4"><AlertTriangle className="h-5 w-5 text-red-500" /><h2 className="text-lg font-semibold">จุดเสี่ยง ({result.citations.length})</h2></div>
               <div className="space-y-2">
                 {result.citations.map((c, i) => (
-                  <div key={`flag-${i}`} className={`p-3 rounded-lg border ${i < 2 ? 'bg-red-500/10 border-red-500/30' : 'bg-orange-500/10 border-orange-500/30'}`}>
+                  <div key={`flag-${c.type}-${c.id}`} className={`p-3 rounded-lg border ${i < 2 ? 'bg-red-500/10 border-red-500/30' : 'bg-orange-500/10 border-orange-500/30'}`}>
                     <div className="flex items-start gap-2">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${i < 2 ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>{i < 2 ? 'ร้ายแรง' : 'ปานกลาง'}</span>
                       <div className="flex-1">
