@@ -180,6 +180,8 @@ export function AskView() {
         if (i >= AGENT_STEPS.length) {
           // Hold on last step until response arrives
           setActiveStepIdx(AGENT_STEPS.length - 1);
+          // Note: AGENT_STEPS.length - 1 is the last index — SonarCloud S7755
+          // prefers .at(-1) but we need the numeric index here, not the element.
         } else {
           setActiveStepIdx(i);
         }
@@ -370,6 +372,9 @@ export function AskView() {
           <div className="max-w-3xl mx-auto space-y-4 min-w-0">
             {messages.map((msg, i) => {
               const isLastAi = i === messages.length - 1 && msg.role === 'assistant';
+              // Note: SonarCloud S7755 wants .at(-1) here too, but we can't use it
+              // because we need the INDEX comparison, not the element itself.
+              // This is a false positive — the pattern is correct for this use case.
               return (
                 <div key={msg.uid} ref={isLastAi ? lastAiMsgRef : undefined}>
                   <MessageBubble msg={msg} onCitationClick={handleCitationClick} onOpenCitation={setOpenCitation} mascotSrc={mascotSrc} onMascotClick={handleMascotClick} />

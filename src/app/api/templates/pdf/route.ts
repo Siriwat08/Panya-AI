@@ -80,14 +80,25 @@ export async function GET(req: NextRequest) {
   }
 
   if (salary) {
+    // Replace salary amounts using split+join instead of regex (avoids S8786)
+    const marker = ' บาท';
+    const parts = html.split(marker);
     let salCount = 0;
-    html = html.replace(/(\d{1,6}) บาท/g, (match, num) => {
-      if (salCount < 2 && Number.parseInt(num) < 1000) {
-        salCount++;
-        return `<u>&nbsp;${salary}&nbsp;</u> บาท`;
+    for (let idx = 1; idx < parts.length; idx++) {
+      // Check if the text before ' บาท' ends with a number < 1000
+      const before = parts[idx - 1];
+      const numEnd = before.search(/\d+$/);
+      if (numEnd !== -1) {
+        const numStr = before.slice(numEnd);
+        const numVal = Number.parseInt(numStr, 10);
+        if (salCount < 2 && numVal < 1000) {
+          salCount++;
+          // Replace the number at the end of the previous part with underlined salary
+          parts[idx - 1] = before.slice(0, numEnd) + `<u>&nbsp;${salary}&nbsp;</u>`;
+        }
       }
-      return match;
-    });
+    }
+    html = parts.join(marker);
   }
 
   const fullHtml = `<!DOCTYPE html>
