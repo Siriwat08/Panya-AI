@@ -2,9 +2,12 @@
 import sys, os, json
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 
+# Add scripts/ dir to path for shared config import
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _db_config import get_turso_config
+
 import libsql_experimental as libsql
-TURSO_URL = "libsql://panya-ai-siriwat08.aws-ap-northeast-1.turso.io"
-TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODUyMzI3MjcsImlkIjoiMDE5ZmEzNzQtYjAwMS03MWZiLWJiZjYtNjQ2YThkMzNmMWViIiwia2lkIjoiLWg1N1RSRmlJT0dMdldjYmpRSU9uVDJLU0tZWW4xZE1zYi1yMlk1TzVLMCIsInJpZCI6ImUxODZhMzBkLWIwY2ItNDhjYi04YWFlLTZhMGE2OWU1YmYxNCJ9.xDpHYWYoV2GyxUOjBDXndONUu059L0hMjCFEJDXNwzwB6xm0icUCRSIQTWyt_a8opI7Wo1OVj9n59NZwfmk_DA"
+TURSO_URL, TURSO_TOKEN = get_turso_config()
 
 conn = libsql.connect(TURSO_URL, auth_token=TURSO_TOKEN)
 cur = conn.cursor()

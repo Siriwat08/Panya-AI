@@ -2,9 +2,11 @@
 import sys, os, csv, json, requests, time
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 
-TURSO_URL = "https://panya-ai-siriwat08.aws-ap-northeast-1.turso.io"
-TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODUyMzI3MjcsImlkIjoiMDE5ZmEzNzQtYjAwMS03MWZiLWJiZjYtNjQ2YThkMzNmMWViIiwia2lkIjoiLWg1N1RSRmlJT0dMdldjYmpRSU9uVDJLU0tZWW4xZE1zYi1yMlk1TzVLMCIsInJpZCI6ImUxODZhMzBkLWIwY2ItNDhjYi04YWFlLTZhMGE2OWU1YmYxNCJ9.xDpHYWYoV2GyxUOjBDXndONUu059L0hMjCFEJDXNwzwB6xm0icUCRSIQTWyt_a8opI7Wo1OVj9n59NZwfmk_DA"
-PIPELINE_URL = f"{TURSO_URL}/v2/pipeline"
+# Add scripts/ dir to path for shared config import
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _db_config import get_http_config
+
+PIPELINE_URL, HTTP_HEADERS = get_http_config()
 
 
 def execute_batch(statements: list):
@@ -28,10 +30,7 @@ def execute_batch(statements: list):
 
     resp = requests.post(
         PIPELINE_URL,
-        headers={
-            "Authorization": f"Bearer {TURSO_TOKEN}",
-            "Content-Type": "application/json",
-        },
+        headers=HTTP_HEADERS,
         json={"requests": requests_body},
         timeout=60,
     )

@@ -27,9 +27,10 @@ from pathlib import Path
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', buffering=1)
 
-# ===== Turso config =====
-TURSO_URL = "libsql://panya-ai-siriwat08.aws-ap-northeast-1.turso.io"
-TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODUyMzI3MjcsImlkIjoiMDE5ZmEzNzQtYjAwMS03MWZiLWJiZjYtNjQ2YThkMzNmMWViIiwia2lkIjoiLWg1N1RSRmlJT0dMdldjYmpRSU9uVDJLU0tZWW4xZE1zYi1yMlk1TzVLMCIsInJpZCI6ImUxODZhMzBkLWIwY2ItNDhjYi04YWFlLTZhMGE2OWU1YmYxNCJ9.xDpHYWYoV2GyxUOjBDXndONUu059L0hMjCFEJDXNwzwB6xm0icUCRSIQTWyt_a8opI7Wo1OVj9n59NZwfmk_DA"
+# ===== Turso config (loaded from env vars via shared helper) =====
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _db_config import get_turso_config
+TURSO_URL, TURSO_TOKEN = get_turso_config()
 
 DATA_DIR = Path("/home/z/my-project/work/legal_data_v2/panya_ai_legal_data")
 
