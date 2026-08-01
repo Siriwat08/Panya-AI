@@ -4,9 +4,10 @@ sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 
 # Add scripts/ dir to path for shared config import
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db_config import get_http_config
+from _db_config import get_http_config, get_lookup_file
 
 PIPELINE_URL, HTTP_HEADERS = get_http_config()
+LOOKUP_FILE = get_lookup_file()
 
 
 def execute_batch(statements: list):
@@ -40,9 +41,9 @@ def execute_batch(statements: list):
 
 
 # Load lookups
-with open('/tmp/code_lookup.json', 'r', encoding='utf-8') as f:
+with open(LOOKUP_FILE, 'r', encoding='utf-8') as f:
     lookup = json.load(f)
-print(f"Loaded lookups", flush=True)
+print(f"Loaded lookups from {LOOKUP_FILE}", flush=True)
 
 
 def resolve_source(doc_id: str):

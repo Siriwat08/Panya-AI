@@ -50,7 +50,7 @@ def parse_front_matter(text: str) -> dict:
         if not line.strip():
             continue
         # List item under current key (starts with - or [)
-        if line.startswith('  - ') or line.startswith('- '):
+        if line.startswith(('  - ', '- ')):
             item = line.lstrip(' -').strip()
             if current_list is not None:
                 current_list.append(_clean_yaml_value(item))
@@ -65,7 +65,7 @@ def parse_front_matter(text: str) -> dict:
             current_list = None
             continue
         # Key: value
-        m = re.match(r'^(\w+):\s*(.*)$', line)
+        m = re.match(r'^(\w+):\s?(.*)$', line)
         if m:
             key = m.group(1)
             val = m.group(2).strip()
@@ -312,7 +312,7 @@ with open(csv_path, 'r', encoding='utf-8-sig') as f:
             # Determine source_type from doc_id prefix
             if doc_id.startswith('F'):
                 source_type = 'contract_template'
-            elif doc_id.startswith('A') or doc_id.startswith('B') or doc_id.startswith('C') or doc_id.startswith('D') or doc_id.startswith('E'):
+            elif doc_id.startswith(('A', 'B', 'C', 'D', 'E')):
                 source_type = 'law'
             elif doc_id.startswith('G'):
                 source_type = 'judgment'

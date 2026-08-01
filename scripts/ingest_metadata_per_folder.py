@@ -22,7 +22,7 @@ def parse_front_matter(text):
     for line in yaml_block.split('\n'):
         if not line.strip():
             continue
-        m = re.match(r'^(\w+):\s*(.*)$', line)
+        m = re.match(r'^(\w+):\s?(.*)$', line)
         if m:
             key = m.group(1)
             val = m.group(2).strip()
@@ -90,7 +90,7 @@ for md_file in md_files:
                 try:
                     topics_list = json.loads(topics)
                     topics_str = json.dumps(topics_list, ensure_ascii=False)
-                except:
+                except (ValueError, TypeError):
                     topics_str = topics
             else:
                 topics_str = topics if topics else None
@@ -100,7 +100,7 @@ for md_file in md_files:
                 try:
                     laws_list = json.loads(laws_cited)
                     laws_cited_str = json.dumps(laws_list, ensure_ascii=False)
-                except:
+                except (ValueError, TypeError):
                     laws_cited_str = laws_cited
             else:
                 laws_cited_str = laws_cited if laws_cited else None

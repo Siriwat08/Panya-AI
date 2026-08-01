@@ -1,8 +1,9 @@
 """Shared config for ingest scripts — loads Turso credentials from env vars.
 
 Usage:
-  from _db_config import get_turso_config
+  from _db_config import get_turso_config, get_work_dir
   url, token = get_turso_config()
+  work_dir = get_work_dir()  # safe per-user dir instead of /tmp
 
 Or for HTTP API:
   from _db_config import get_http_config
@@ -11,6 +12,7 @@ Or for HTTP API:
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -47,7 +49,7 @@ def _load_env_file():
                     if key:
                         os.environ[key] = value
             return
-        except Exception:
+        except OSError:
             continue
 
 
@@ -87,3 +89,30 @@ def get_http_config():
         'Content-Type': 'application/json',
     }
     return pipeline_url, headers
+
+
+def get_work_dir() -> Path:
+    """Return a per-user working directory for intermediate files.
+
+    Uses tempfile.gettempdir() + 'panya-ai-<uid>' instead of writing directly
+    to /tmp — this avoids the S5443 (publicly writable directory) warning
+    while still keeping files in a known location across runs.
+
+    The directory is created with mode 0700 (owner-only) and returned as
+    a Path object. Files written here are only readable by the current user.
+    """
+    uid = os.getuid() if hasattr(os, 'getuid') else 0
+    base = Path(tempfile.gettempdir()) / f'panya-ai-{uid}'
+    base.mkdir(mode=0o700, exist_ok=True)
+    # Ensure restrictive permissions even if dir already existed
+    try:
+        os.chmod(base, 0o700)
+    except OSError:
+        pass
+    return base
+
+
+def get_lookup_file() -> Path:
+    """Return the path to the code_lookup.json file in the safe work dir."""
+    return get_work_dir() / 'code_lookup.json'
+
