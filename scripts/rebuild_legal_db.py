@@ -216,15 +216,18 @@ def main():
 
     # 1. Copy sources + add license column data
     print('=== Copying sources ===')
+    PD_THAI_GOV = 'Public domain (Thai government)'
+    PD_PYTHAINLP = 'Public domain (PyThaiNLP)'
+    OPEN_DATA = 'Open data — verify per document'
     source_license_map = {
-        1: 'Public domain (Thai government)',
-        2: 'Public domain (PyThaiNLP)',
-        3: 'Public domain (PyThaiNLP)',
+        1: PD_THAI_GOV,
+        2: PD_PYTHAINLP,
+        3: PD_PYTHAINLP,
         4: 'Academic use only — NOT for commercial use',
-        5: 'Public domain (Thai government)',
-        6: 'Public domain (Thai government)',
-        7: 'Open data — verify per document',
-        8: 'Open data — verify per document',
+        5: PD_THAI_GOV,
+        6: PD_THAI_GOV,
+        7: OPEN_DATA,
+        8: OPEN_DATA,
         9: 'Public domain (ThaiDeka — verify)',
     }
     src_sources = src.execute('SELECT * FROM sources').fetchall()
@@ -445,7 +448,8 @@ def main():
         14: ['จราจร'],
     }
     # Build pattern: find "ม.XX" or "มาตรา XX" inside law_references
-    section_ref_re = re.compile(r'มาตรา\s*([๐-๙]+(?:/[๐-๙]+)?|[0-9]+(?:/[0-9]+)?)|ม\.?\s*([๐-๙]+(?:/[๐-๙]+)?|[0-9]+(?:/[0-9]+)?)')
+    # Use \d instead of [0-9] for conciseness (SonarCloud S6353)
+    section_ref_re = re.compile(r'มาตรา\s*([๐-๙]+(?:/[๐-๙]+)?|\d+(?:/\d+)?)|ม\.?\s*([๐-๙]+(?:/[๐-๙]+)?|\d+(?:/\d+)?)')
 
     judgments = out.execute('SELECT judgment_id, law_references FROM case_judgments WHERE law_references IS NOT NULL AND law_references != ""').fetchall()
     new_links_count = 0
