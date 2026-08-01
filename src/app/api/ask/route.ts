@@ -187,7 +187,8 @@ F14=NDA F15=Non-compete F20=ลดค่าจ้าง F22=พักงาน
 
 function selectSkill(question: string): SubSkill {
   const q = question.toLowerCase();
-  let bestSkill = SKILLS[SKILLS.length - 1]; // default = legal-qa
+  // Default skill is the last one (legal-qa) — use .at(-1) per SonarCloud S7755
+  let bestSkill = SKILLS.at(-1) as SubSkill;
   let bestScore = 0;
 
   for (const skill of SKILLS) {
@@ -206,10 +207,25 @@ function selectSkill(question: string): SubSkill {
 
   // If no keyword matched, use default
   if (bestScore === 0) {
-    bestSkill = SKILLS[SKILLS.length - 1];
+    bestSkill = SKILLS.at(-1) as SubSkill;
   }
 
   return bestSkill;
+}
+
+/** Parse and validate the request body. Returns null on error (with response already sent). */
+function parseRequestBody(body: AskBody): { question: string } | { error: string; status: number } {
+  const question = (body.question || '').trim();
+  if (!question) return { error: 'question required', status: 400 };
+  if (question.length > 2000) return { error: 'too long', status: 400 };
+  return { question };
+}
+
+/** Resolve persona from request body. Returns null if not set or invalid. */
+function resolvePersona(body: AskBody): { id: PersonaId; persona: Persona } | null {
+  const personaId = body.persona && body.persona in PERSONAS ? body.persona : null;
+  if (!personaId) return null;
+  return { id: personaId, persona: PERSONAS[personaId] };
 }
 
 // ============================================================
@@ -227,13 +243,17 @@ export async function POST(req: NextRequest) {
   let body: AskBody;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const question = (body.question || '').trim();
-  if (!question) return NextResponse.json({ error: 'question required' }, { status: 400 });
-  if (question.length > 2000) return NextResponse.json({ error: 'too long' }, { status: 400 });
+  // Validate request body
+  const parsed = parseRequestBody(body);
+  if ('error' in parsed) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  }
+  const question = parsed.question;
 
   // 0. Resolve persona (from request body — set by frontend from localStorage)
-  const personaId = body.persona && body.persona in PERSONAS ? body.persona : null;
-  const persona = personaId ? PERSONAS[personaId] : null;
+  const personaInfo = resolvePersona(body);
+  const personaId = personaInfo?.id ?? null;
+  const persona = personaInfo?.persona ?? null;
 
   // 1. Route to appropriate sub-skill
   let skill = selectSkill(question);
@@ -247,9 +267,8 @@ export async function POST(req: NextRequest) {
   console.log(`[ask] persona=${personaId || 'none'} skill=${skill.name} (question="${question.slice(0, 60)}...")`);
 
   // 2. RAG: ดึงข้อมูลที่เกี่ยวข้อง (ใช้ topK และ laborOnly ของ skill — หรือ persona override)
-  const laborOnly = body.laborOnly !== undefined
-    ? body.laborOnly
-    : (persona ? persona.laborOnly : skill.laborOnly);
+  // Use nullish coalescing for cleaner fallback (SonarCloud S6606 + S3358)
+  const laborOnly = body.laborOnly ?? persona?.laborOnly ?? skill.laborOnly;
   const hits = await retrieveRelevant(question, {
     topK: skill.topK,
     laborOnly,
