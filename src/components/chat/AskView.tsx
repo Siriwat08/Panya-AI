@@ -148,7 +148,7 @@ export function AskView() {
   // Smart scroll: when user sends → scroll to bottom (show loading);
   // when AI responds → scroll to TOP of AI message (so user reads from beginning, not end)
   useEffect(() => {
-    const lastMsg = messages[messages.length - 1];
+    const lastMsg = messages.at(-1);
     const wasLoading = prevLoadingRef.current;
 
     if (loading) {
