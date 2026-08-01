@@ -11,6 +11,13 @@ const CATS: Record<string,string> = { labor:'แรงงาน', accounting:'�
 const STEPS = [{n:1,label:'เลือกเทมเพลต'},{n:2,label:'กรอกข้อมูล'},{n:3,label:'ตรวจดู'},{n:4,label:'ดาวน์โหลด'}];
 const DF = { company:'ห้างหุ้นส่วนจำกัด เผ่าปัญญา ทรานสปอร์ต', empName:'', empPosition:'', reason:'', date:new Date().toLocaleDateString('th-TH'), signerName:'', signerTitle:'' };
 
+/** Resolve step badge class (extracted from nested ternary — SonarCloud S3358). */
+function getStepBadgeClass(done: boolean, active: boolean): string {
+  if (done) return 'bg-green-600 text-white';
+  if (active) return 'bg-navy text-white';
+  return 'bg-card-soft text-muted-foreground border border-border/60';
+}
+
 export function PdfBuilderView({ initialTemplateId }: { readonly initialTemplateId?: number }) {
   const { navigate } = useNavigation();
   const [step, setStep] = useState(initialTemplateId ? 2 : 1);
@@ -63,7 +70,7 @@ export function PdfBuilderView({ initialTemplateId }: { readonly initialTemplate
               return (
                 <div key={s.n} className="flex items-center flex-1 last:flex-none">
                   <div className="flex items-center gap-2.5">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center font-semibold text-sm ${d ? 'bg-green-600 text-white' : a ? 'bg-navy text-white' : 'bg-card-soft text-muted-foreground border border-border/60'}`}>
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center font-semibold text-sm ${getStepBadgeClass(d, a)}`}>
                       {d ? <Check className="h-4 w-4" strokeWidth={2.5} /> : s.n}
                     </div>
                     <span className={`text-sm ${a || d ? 'font-medium' : 'text-muted-foreground'}`}>{s.label}</span>
@@ -108,13 +115,13 @@ export function PdfBuilderView({ initialTemplateId }: { readonly initialTemplate
               <h2 className="text-lg font-semibold mb-1">กรอกข้อมูล</h2>
               <p className="text-sm text-muted-foreground mb-6"><span className="text-gold font-semibold">{selected.templateCode}</span> — {selected.title}</p>
               <div className="grid gap-4 sm:grid-cols-2">
-                <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">ชื่อบริษัท</label><input type="text" value={form.company} onChange={e => sf('company', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
-                <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">วันที่</label><input type="text" value={form.date} onChange={e => sf('date', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
-                <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">ชื่อพนักงาน</label><input type="text" value={form.empName} onChange={e => sf('empName', e.target.value)} placeholder="นาย ก." className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
-                <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">ตำแหน่ง</label><input type="text" value={form.empPosition} onChange={e => sf('empPosition', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
-                <div className="sm:col-span-2"><label className="block text-xs font-medium text-muted-foreground mb-1.5">เหตุผล/หมายเหตุ</label><input type="text" value={form.reason} onChange={e => sf('reason', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
-                <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">ชื่อผู้ลงนาม</label><input type="text" value={form.signerName} onChange={e => sf('signerName', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
-                <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">ตำแหน่งผู้ลงนาม</label><input type="text" value={form.signerTitle} onChange={e => sf('signerTitle', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
+                <div><label htmlFor="pdf-company" className="block text-xs font-medium text-muted-foreground mb-1.5">ชื่อบริษัท</label><input id="pdf-company" type="text" value={form.company} onChange={e => sf('company', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
+                <div><label htmlFor="pdf-date" className="block text-xs font-medium text-muted-foreground mb-1.5">วันที่</label><input id="pdf-date" type="text" value={form.date} onChange={e => sf('date', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
+                <div><label htmlFor="pdf-emp-name" className="block text-xs font-medium text-muted-foreground mb-1.5">ชื่อพนักงาน</label><input id="pdf-emp-name" type="text" value={form.empName} onChange={e => sf('empName', e.target.value)} placeholder="นาย ก." className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
+                <div><label htmlFor="pdf-emp-position" className="block text-xs font-medium text-muted-foreground mb-1.5">ตำแหน่ง</label><input id="pdf-emp-position" type="text" value={form.empPosition} onChange={e => sf('empPosition', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
+                <div className="sm:col-span-2"><label htmlFor="pdf-reason" className="block text-xs font-medium text-muted-foreground mb-1.5">เหตุผล/หมายเหตุ</label><input id="pdf-reason" type="text" value={form.reason} onChange={e => sf('reason', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
+                <div><label htmlFor="pdf-signer-name" className="block text-xs font-medium text-muted-foreground mb-1.5">ชื่อผู้ลงนาม</label><input id="pdf-signer-name" type="text" value={form.signerName} onChange={e => sf('signerName', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
+                <div><label htmlFor="pdf-signer-title" className="block text-xs font-medium text-muted-foreground mb-1.5">ตำแหน่งผู้ลงนาม</label><input id="pdf-signer-title" type="text" value={form.signerTitle} onChange={e => sf('signerTitle', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border/50 bg-card-soft outline-none focus:border-gold/40" /></div>
               </div>
               <div className="flex justify-between mt-6">
                 <Button type="button" variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4" /> ย้อนกลับ</Button>
