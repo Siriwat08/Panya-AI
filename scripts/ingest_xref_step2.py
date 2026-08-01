@@ -4,32 +4,18 @@ sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 
 # Add scripts/ dir to path for shared config import
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db_config import get_turso_config, get_lookup_file
+from _db_config import get_turso_config, load_lookup, resolve_source
 
 import libsql_experimental as libsql
 TURSO_URL, TURSO_TOKEN = get_turso_config()
-LOOKUP_FILE = get_lookup_file()
 
-# Load lookups
-with open(LOOKUP_FILE, 'r', encoding='utf-8') as f:
-    lookup = json.load(f)
-print(f"Loaded lookups from {LOOKUP_FILE}: laws={len(lookup['law'])}, judgments={len(lookup['judgment'])}, regulations={len(lookup['regulation'])}, templates={len(lookup['contract_template'])}", flush=True)
+# Load lookups (shared helper from _db_config)
+lookup = load_lookup()
+print(f"Loaded lookups: laws={len(lookup.get('law',{}))}, judgments={len(lookup.get('judgment',{}))}", flush=True)
 
 conn = libsql.connect(TURSO_URL, auth_token=TURSO_TOKEN)
 cur = conn.cursor()
 print("Connected", flush=True)
-
-
-def resolve_source(doc_id: str):
-    if doc_id.startswith('F'):
-        return ('contract_template', lookup['contract_template'].get(doc_id, 0))
-    elif doc_id and doc_id[0] in 'ABCDE':
-        return ('law', lookup['law'].get(doc_id, 0))
-    elif doc_id.startswith('G'):
-        return ('judgment', lookup['judgment'].get(doc_id, 0))
-    elif doc_id.startswith('H'):
-        return ('regulation', lookup['regulation'].get(doc_id, 0))
-    return ('unknown', 0)
 
 
 # Skip clear (table already empty)
@@ -58,7 +44,7 @@ with open(csv_path, 'r', encoding='utf-8-sig') as f:
             if not doc_id or not law_id_str:
                 continue
 
-            source_type, source_id = resolve_source(doc_id)
+            source_type, source_id = resolve_source(doc_id, lookup)
             if source_id == 0:
                 skipped += 1
                 continue

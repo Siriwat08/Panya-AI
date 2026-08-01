@@ -23,6 +23,47 @@ export interface Persona {
   quickActions: Array<{ view: string; label: string; icon: string }>;
 }
 
+// ============================
+// Shared helpers (reduce code duplication)
+// ============================
+
+/** Build a persona prompt prefix from structured parts. All personas share the same
+ *  boilerplate (org name, section headers) — this helper centralizes it. */
+function buildPromptPrefix(opts: {
+  emoji: string;
+  title: string;
+  role: string;
+  needs: string[];
+  focus: string[];
+  avoid?: string[];
+  footer?: string;
+}): string {
+  const lines = [
+    `# ${opts.emoji} PERSONA: ${opts.title}`,
+    `ผู้ใช้คือ${opts.role}ของ หจก.เผ่าปัญญา ทรานสปอร์ต`,
+    `ความต้องการหลัก:`,
+    ...opts.needs.map(n => `- ${n}`),
+    ``,
+    `เน้น:`,
+    ...opts.focus.map(f => `- ${f}`),
+  ];
+  if (opts.avoid && opts.avoid.length > 0) {
+    lines.push(``, `หลีกเลี่ยง:`, ...opts.avoid.map(a => `- ${a}`));
+  }
+  if (opts.footer) {
+    lines.push(``, opts.footer);
+  }
+  return lines.join('\n');
+}
+
+/** Common quick action shortcuts reused across personas. */
+const QA = {
+  ask: { view: 'ask', label: 'ถาม AI', icon: 'MessageSquare' },
+  pdfBuilder: { view: 'pdf-builder', label: 'สร้างเอกสาร', icon: 'Wand2' },
+  contractAnalysis: { view: 'contract-analysis', label: 'วิเคราะห์สัญญา', icon: 'FileSearch' },
+  riskMatrix: { view: 'risk-matrix', label: 'Risk Matrix', icon: 'Grid3x3' },
+};
+
 export const PERSONAS: Record<PersonaId, Persona> = {
   // ============================
   // HR — ฝ่ายบุคคล
@@ -34,22 +75,26 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     icon: 'Users',
     color: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
     description: 'เน้นการจัดการพนักงานรายวัน — สัญญาจ้าง, หนังสือเตือน, ค่าจ้าง/OT, การลา, วินัย',
-    promptPrefix: `# 👤 PERSONA: HR (ฝ่ายบุคคล)
-ผู้ใช้คือเจ้าหน้าที่ฝ่ายบุคคลของ หจก.เผ่าปัญญา ทรานสปอร์ต
-ความต้องการหลัก:
-- ร่างเอกสารประจำวัน: สัญญาจ้าง, หนังสือเตือน, ใบลา, ใบรับรองเงินเดือน
-- คำนวณสิทธิ: ค่าจ้าง OT, ค่าชดเชย, เงินประกันสังคม, เงินทดแทน
-- จัดการวินัย: หนังสือเตือน 3 ครั้ง → เลิกจ้าง (ม.119(4))
-- ตอบคำถามพนักงานเกี่ยวกับสิทธิ/หน้าที่
-
-เน้น:
-- ขั้นตอนที่ "ปฏิบัติได้จริง" ทันที (พร้อมเทมเพลต)
-- ระบุเอกสารที่ต้องใช้ + มาตราอ้างอิง
-- เตือนความเสี่ยงที่อาจเกิดจากการทำผิดขั้นตอน
-
-หลีกเลี่ยง:
-- คำแนะนำเชิงนโยบายระดับสูง (ให้ Owner ตัดสินใจ)
-- การวิเคราะห์คดีฎีกาโดยไม่จำเป็น`,
+    promptPrefix: buildPromptPrefix({
+      emoji: '👤',
+      title: 'HR (ฝ่ายบุคคล)',
+      role: 'เจ้าหน้าที่ฝ่ายบุคคล',
+      needs: [
+        'ร่างเอกสารประจำวัน: สัญญาจ้าง, หนังสือเตือน, ใบลา, ใบรับรองเงินเดือน',
+        'คำนวณสิทธิ: ค่าจ้าง OT, ค่าชดเชย, เงินประกันสังคม, เงินทดแทน',
+        'จัดการวินัย: หนังสือเตือน 3 ครั้ง → เลิกจ้าง (ม.119(4))',
+        'ตอบคำถามพนักงานเกี่ยวกับสิทธิ/หน้าที่',
+      ],
+      focus: [
+        'ขั้นตอนที่ "ปฏิบัติได้จริง" ทันที (พร้อมเทมเพลต)',
+        'ระบุเอกสารที่ต้องใช้ + มาตราอ้างอิง',
+        'เตือนความเสี่ยงที่อาจเกิดจากการทำผิดขั้นตอน',
+      ],
+      avoid: [
+        'คำแนะนำเชิงนโยบายระดับสูง (ให้ Owner ตัดสินใจ)',
+        'การวิเคราะห์คดีฎีกาโดยไม่จำเป็น',
+      ],
+    }),
     laborOnly: true,
     skillPriority: ['document-drafting', 'contract-review', 'risk-assessment', 'legal-qa'],
     sampleQuestions: [
@@ -60,8 +105,8 @@ export const PERSONAS: Record<PersonaId, Persona> = {
       'ต้องการร่างสัญญาจ้างงานพนักงานขับรถ — เน้นเรื่องใด?',
     ],
     quickActions: [
-      { view: 'pdf-builder', label: 'สร้างเอกสาร', icon: 'Wand2' },
-      { view: 'ask', label: 'ถาม AI', icon: 'MessageSquare' },
+      QA.pdfBuilder,
+      QA.ask,
       { view: 'templates', label: 'เทมเพลต', icon: 'FileText' },
       { view: 'laws', label: 'กฎหมายแรงงาน', icon: 'BookOpen' },
     ],
@@ -77,21 +122,24 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     icon: 'Scale',
     color: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
     description: 'เน้นการวิเคราะห์เชิงลึก — ฎีกา, ความเสี่ยงคดี, ตรวจสัญญา, กลยุทธ์ฟ้อง/ต่อสู้คดี',
-    promptPrefix: `# ⚖️ PERSONA: Legal Counsel (ฝ่ายกฎหมาย)
-ผู้ใช้คือทนายความ/ที่ปรึกษากฎหมายในองค์กรของ หจก.เผ่าปัญญา ทรานสปอร์ต
-ความต้องการหลัก:
-- วิเคราะห์สัญญา/เงื่อนไขอย่างละเอียด — หาข้อที่ผิดกฎหมาย + ระบุมาตรา
-- ศึกษาคำพิพากษาฎีกาที่เกี่ยวข้อง + อัตราความสำเร็จ
-- ประเมินความเสี่ยงคดี (Risk Matrix 5×5) + แนวป้องกันเชิงกลยุทธ์
-- เตรียมเอกสารสำหรับฟ้อง/ต่อสู้คดี — คำฟ้อง, คำให้การ, หนังสือนำสืบ
-
-เน้น:
-- ความแม่นยำทางกฎหมาย — ระบุมาตรา, ข้อความฎีกา, หลักกฎหมาย
-- วิเคราะห์หลายมุมมอง — ฝั่งเรา vs ฝั่งคู่กรณี
-- ระบุความเสี่ยงที่อาจเกิดจากจังหวะเวลา, หลักฐาน, อายุความ
-- เสนอทางเลือกหลายแบบ + ข้อดี-ข้อเสียแต่ละทาง
-
-ใช้ศัพท์กฎหมายเฉพาะทางได้ — แต่ต้องอธิบายให้ HR/Owner เข้าใจได้`,
+    promptPrefix: buildPromptPrefix({
+      emoji: '⚖️',
+      title: 'Legal Counsel (ฝ่ายกฎหมาย)',
+      role: 'ทนายความ/ที่ปรึกษากฎหมายในองค์กร',
+      needs: [
+        'วิเคราะห์สัญญา/เงื่อนไขอย่างละเอียด — หาข้อที่ผิดกฎหมาย + ระบุมาตรา',
+        'ศึกษาคำพิพากษาฎีกาที่เกี่ยวข้อง + อัตราความสำเร็จ',
+        'ประเมินความเสี่ยงคดี (Risk Matrix 5×5) + แนวป้องกันเชิงกลยุทธ์',
+        'เตรียมเอกสารสำหรับฟ้อง/ต่อสู้คดี — คำฟ้อง, คำให้การ, หนังสือนำสืบ',
+      ],
+      focus: [
+        'ความแม่นยำทางกฎหมาย — ระบุมาตรา, ข้อความฎีกา, หลักกฎหมาย',
+        'วิเคราะห์หลายมุมมอง — ฝั่งเรา vs ฝั่งคู่กรณี',
+        'ระบุความเสี่ยงที่อาจเกิดจากจังหวะเวลา, หลักฐาน, อายุความ',
+        'เสนอทางเลือกหลายแบบ + ข้อดี-ข้อเสียแต่ละทาง',
+      ],
+      footer: 'ใช้ศัพท์กฎหมายเฉพาะทางได้ — แต่ต้องอธิบายให้ HR/Owner เข้าใจได้',
+    }),
     laborOnly: false, // Legal needs ALL law categories
     skillPriority: ['contract-review', 'risk-assessment', 'legal-qa', 'document-drafting'],
     sampleQuestions: [
@@ -102,9 +150,9 @@ export const PERSONAS: Record<PersonaId, Persona> = {
       'จะร่าง "หนังสือแจ้งเลิกสัญญาจ้าง" ที่ทนายฝั่งตรงข้ามเอาไม่ได้ — เน้นอะไร?',
     ],
     quickActions: [
-      { view: 'contract-analysis', label: 'วิเคราะห์สัญญา', icon: 'FileSearch' },
-      { view: 'risk-matrix', label: 'Risk Matrix', icon: 'Grid3x3' },
-      { view: 'ask', label: 'ถาม AI', icon: 'MessageSquare' },
+      QA.contractAnalysis,
+      QA.riskMatrix,
+      QA.ask,
       { view: 'judgments', label: 'คำพิพากษา', icon: 'Scale' },
     ],
   },
@@ -119,23 +167,27 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     icon: 'Crown',
     color: 'bg-gold/15 text-gold border-gold/30',
     description: 'มุมมองระดับนโยบาย — ความเสี่ยงรวม, การตัดสินใจใหญ่, ต้นทุน-ผลตอบแทน, กลยุทธ์',
-    promptPrefix: `# 👑 PERSONA: Owner (เจ้าของกิจการ)
-ผู้ใช้คือเจ้าของกิจการของ หจก.เผ่าปัญญา ทรานสปอร์ต
-ความต้องการหลัก:
-- ภาพรวมความเสี่ยง — ไม่ลงรายละเอียดเทคนิค
-- การตัดสินใจระดับนโยบาย: เปิด/ปิดสาขา, จ้าง/เลิกจ้างรวม, ลดต้นทุน
-- ตัวเลขธุรกิจ: ต้นทุนค่าชดเชย, ค่าปรับ, ค่าทนาย, เวลาคดี
-- ความเสี่ยงต่อแบรนด์/ชื่อเสียง — ไม่ใช่แค่ตัวเลข
-
-เน้น:
-- สรุปคำแนะนำเป็น "ทำ / ไม่ทำ / รอดู" ใน 3 บรรทัดแรก
-- เปรียบเทียบทางเลือก: ต้นทุน vs ผลตอบแทน vs ความเสี่ยง
-- ระบุความเสี่ยงเชิงธุรกิจ (reputational, financial, operational)
-- ใช้ภาษาธุรกิจ — ไม่ใช่ศัพท์กฎหมายเฉพาะทาง
-
-หลีกเลี่ยง:
-- รายละเอียดมาตรา/ฎีกาในส่วนสรุป (ย้ายไป appendix)
-- คำแนะนำที่ต้องการการดำเนินการทันที (ให้ HR/Legal execute)`,
+    promptPrefix: buildPromptPrefix({
+      emoji: '👑',
+      title: 'Owner (เจ้าของกิจการ)',
+      role: 'เจ้าของกิจการ',
+      needs: [
+        'ภาพรวมความเสี่ยง — ไม่ลงรายละเอียดเทคนิค',
+        'การตัดสินใจระดับนโยบาย: เปิด/ปิดสาขา, จ้าง/เลิกจ้างรวม, ลดต้นทุน',
+        'ตัวเลขธุรกิจ: ต้นทุนค่าชดเชย, ค่าปรับ, ค่าทนาย, เวลาคดี',
+        'ความเสี่ยงต่อแบรนด์/ชื่อเสียง — ไม่ใช่แค่ตัวเลข',
+      ],
+      focus: [
+        'สรุปคำแนะนำเป็น "ทำ / ไม่ทำ / รอดู" ใน 3 บรรทัดแรก',
+        'เปรียบเทียบทางเลือก: ต้นทุน vs ผลตอบแทน vs ความเสี่ยง',
+        'ระบุความเสี่ยงเชิงธุรกิจ (reputational, financial, operational)',
+        'ใช้ภาษาธุรกิจ — ไม่ใช่ศัพท์กฎหมายเฉพาะทาง',
+      ],
+      avoid: [
+        'รายละเอียดมาตรา/ฎีกาในส่วนสรุป (ย้ายไป appendix)',
+        'คำแนะนำที่ต้องการการดำเนินการทันที (ให้ HR/Legal execute)',
+      ],
+    }),
     laborOnly: true,
     skillPriority: ['risk-assessment', 'legal-qa', 'document-drafting', 'contract-review'],
     sampleQuestions: [
@@ -146,10 +198,10 @@ export const PERSONAS: Record<PersonaId, Persona> = {
       'เปรียบเทียบ: จ้างพนักงานประจำ vs จ้างเหมา — ต้นทุน/ความเสี่ยงต่างอย่างไร?',
     ],
     quickActions: [
-      { view: 'risk-matrix', label: 'Risk Matrix', icon: 'Grid3x3' },
-      { view: 'ask', label: 'ถาม AI', icon: 'MessageSquare' },
-      { view: 'contract-analysis', label: 'วิเคราะห์สัญญา', icon: 'FileSearch' },
-      { view: 'pdf-builder', label: 'สร้างเอกสาร', icon: 'Wand2' },
+      QA.riskMatrix,
+      QA.ask,
+      QA.contractAnalysis,
+      QA.pdfBuilder,
     ],
   },
 };

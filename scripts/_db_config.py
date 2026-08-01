@@ -116,3 +116,40 @@ def get_lookup_file() -> Path:
     """Return the path to the code_lookup.json file in the safe work dir."""
     return get_work_dir() / 'code_lookup.json'
 
+
+def load_lookup() -> dict:
+    """Load the code lookup JSON file. Returns dict with keys:
+    'law', 'judgment', 'regulation', 'contract_template'.
+    Each maps code string → numeric ID.
+    """
+    import json
+    lookup_path = get_lookup_file()
+    if not lookup_path.exists():
+        print(f'ERROR: lookup file not found at {lookup_path}', file=sys.stderr)
+        print('Run ingest_xref_step1.py first to generate it.', file=sys.stderr)
+        sys.exit(1)
+    with open(lookup_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def resolve_source(doc_id: str, lookup: dict):
+    """Resolve a document ID prefix to (source_type, source_id).
+
+    Convention:
+      F*  → contract_template
+      A-E → law
+      G*  → judgment
+      H*  → regulation
+    """
+    if not doc_id:
+        return ('unknown', 0)
+    if doc_id.startswith('F'):
+        return ('contract_template', lookup.get('contract_template', {}).get(doc_id, 0))
+    if doc_id[0] in 'ABCDE':
+        return ('law', lookup.get('law', {}).get(doc_id, 0))
+    if doc_id.startswith('G'):
+        return ('judgment', lookup.get('judgment', {}).get(doc_id, 0))
+    if doc_id.startswith('H'):
+        return ('regulation', lookup.get('regulation', {}).get(doc_id, 0))
+    return ('unknown', 0)
+
