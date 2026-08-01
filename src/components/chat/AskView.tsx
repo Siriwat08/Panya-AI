@@ -42,6 +42,41 @@ function useSampleQuestions() {
   return SAMPLE_QUESTIONS;
 }
 
+/** Resolve mascot image source based on UI state (extracted from nested ternary). */
+function getMascotSrc(opts: {
+  showEasterEgg: boolean;
+  loading: boolean;
+  openCitation: boolean;
+  thinkingIdx: number;
+  thinkingImgs: readonly string[];
+}): string {
+  if (opts.showEasterEgg) return '/mascot/mascot-back.png';
+  if (opts.loading) return opts.thinkingImgs[opts.thinkingIdx % opts.thinkingImgs.length];
+  if (opts.openCitation) return '/mascot/mascot-right.png';
+  return '/mascot/mascot-front.png';
+}
+
+/** Resolve message bubble className based on role/error (extracted from nested ternary). */
+function getBubbleClass(isUser: boolean, isError: boolean): string {
+  if (isUser) return 'bg-gradient-to-br from-gold to-gold/80 text-navy rounded-br-md';
+  if (isError) return 'card-premium border-destructive/30 rounded-bl-md';
+  return 'card-premium rounded-bl-md';
+}
+
+/** Resolve agent step dot className based on done/active state (extracted from nested ternary). */
+function getStepDotClass(done: boolean, active: boolean): string {
+  if (done) return 'bg-green-600';
+  if (active) return 'border-2 border-gold animate-spin';
+  return 'border border-border/60';
+}
+
+/** Resolve agent step opacity based on state (extracted from nested ternary). */
+function getStepOpacity(opts: { pending: boolean; loading: boolean; idx: number; activeStepIdx: number }): number {
+  if (opts.pending) return 0.35;
+  if (opts.loading && opts.idx > opts.activeStepIdx) return 0.35;
+  return 1;
+}
+
 /** Agent workflow steps — animated while AI is processing */
 const AGENT_STEPS = [
   { id: 1, label: 'ทำความเข้าใจคำถาม', detail: 'วิเคราะห์ประเด็นและเจตนาของผู้ถาม' },
@@ -93,13 +128,7 @@ export function AskView() {
   const [thinkingIdx, setThinkingIdx] = useState(0);
   const thinkingImgs = ['/mascot/mascot-front.png', '/mascot/mascot-left.png', '/mascot/mascot-right.png'];
   // 3. Direction-aware: front by default, right when citation panel open, back on easter egg
-  const mascotSrc = showEasterEgg
-    ? '/mascot/mascot-back.png'
-    : loading
-    ? thinkingImgs[thinkingIdx % 3]
-    : openCitation
-    ? '/mascot/mascot-right.png'
-    : '/mascot/mascot-front.png';
+  const mascotSrc = getMascotSrc({ showEasterEgg, loading, openCitation, thinkingIdx, thinkingImgs });
 
   const handleMascotClick = () => {
     const n = mascotClicks + 1;
@@ -437,15 +466,17 @@ function MessageBubble({
     }
     const parts = text.split(/(\[\d+\])/g);
     return parts.map((part, i) => {
-      const m = part.match(/\[(\d+)\]/);
+      // Use RegExp.exec instead of String.match (SonarCloud S6594)
+      const m = /\[(\d+)\]/.exec(part);
       if (m) {
-        const n = parseInt(m[1], 10);
+        // Use Number.parseInt instead of global parseInt (SonarCloud S7773)
+        const n = Number.parseInt(m[1], 10);
         const cit = msg.citations?.find(c => c.index === n);
         if (cit) {
           return (
             <button
               type="button"
-              key={i}
+              key={`cit-${cit.index}-${i}`}
               onClick={() => onCitationClick(cit.url, cit)}
               className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[11px] font-semibold bg-gold/15 text-gold border border-gold/40 hover:bg-gold/25 transition align-baseline cursor-pointer"
               style={{ fontFamily: 'var(--font-ibm-plex-serif)' }}
@@ -455,7 +486,8 @@ function MessageBubble({
           );
         }
       }
-      return <span key={i} className="whitespace-pre-wrap">{part}</span>;
+      // Stable key: use part content (truncated) + index to avoid array-index-only keys
+      return <span key={`text-${part.slice(0, 20)}-${i}`} className="whitespace-pre-wrap">{part}</span>;
     });
   };
 
@@ -474,13 +506,7 @@ function MessageBubble({
           </div>
         )}
         <div
-          className={`rounded-2xl px-4 py-3 ${
-            isUser
-              ? 'bg-gradient-to-br from-gold to-gold/80 text-navy rounded-br-md'
-              : msg.error
-              ? 'card-premium border-destructive/30 rounded-bl-md'
-              : 'card-premium rounded-bl-md'
-          }`}
+          className={`rounded-2xl px-4 py-3 ${getBubbleClass(isUser, !!msg.error)}`}
         >
           <div className="text-sm prose-thai whitespace-pre-wrap leading-relaxed break-words overflow-hidden w-full">
             {renderContent(msg.content)}
@@ -558,13 +584,7 @@ function AgentRunning({ idx, mascotSrc }: { readonly idx: number; readonly masco
                   style={{ opacity: i > idx ? 0.35 : 1 }}
                 >
                   <div
-                    className={`h-4 w-4 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
-                      done
-                        ? 'bg-green-600'
-                        : active
-                        ? 'border-2 border-gold animate-spin'
-                        : 'border border-border/60'
-                    }`}
+                    className={`h-4 w-4 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${getStepDotClass(done, active)}`}
                   >
                     {done && (
                       <svg className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
@@ -627,16 +647,10 @@ function RightPanel({
                 <div
                   key={s.id}
                   className="flex items-start gap-2 transition-opacity duration-200"
-                  style={{ opacity: pending ? 0.35 : (loading && i > activeStepIdx ? 0.35 : 1) }}
+                  style={{ opacity: getStepOpacity({ pending: !!pending, loading: !!loading, idx: i, activeStepIdx }) }}
                 >
                   <div
-                    className={`h-3.5 w-3.5 rounded-full flex-shrink-0 mt-0.5 transition-all ${
-                      done
-                        ? 'bg-green-600'
-                        : active
-                        ? 'border-2 border-gold animate-spin'
-                        : 'border border-border/60'
-                    }`}
+                    className={`h-3.5 w-3.5 rounded-full flex-shrink-0 mt-0.5 transition-all ${getStepDotClass(done, active)}`}
                   />
                   <div className={`text-[12px] leading-relaxed ${active ? 'text-gold font-semibold' : 'text-foreground/80'}`}>
                     {s.label}
