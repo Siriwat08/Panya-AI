@@ -235,8 +235,8 @@ function LiveChatDemo({ typedQ, qIdx, onAskClick }: { readonly typedQ: string; r
             </span>
           </div>
           <div className="flex gap-1">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-2 w-2 rounded-full bg-white/15" />
+            {[1, 2, 3].map(dotNum => (
+              <div key={`dot-${dotNum}`} className="h-2 w-2 rounded-full bg-white/15" />
             ))}
           </div>
         </div>
@@ -258,7 +258,7 @@ function LiveChatDemo({ typedQ, qIdx, onAskClick }: { readonly typedQ: string; r
           <div className="text-[10px] uppercase tracking-wider text-navy-300 mb-2">AI กำลังทำงาน</div>
           {demo.steps.map((s, i) => (
             <div
-              key={i}
+              key={`step-${s.label}`}
               className="flex items-center gap-2.5 py-1.5 text-[12px]"
               style={{ color: s.done ? 'rgba(200,210,235,0.8)' : '#c9a961' }}
             >
@@ -394,7 +394,7 @@ function EmployerSection() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {EMPLOYER_DEFENSE_CARDS.map((c, i) => (
               <div
-                key={i}
+                key={c.t}
                 className="card-premium rounded-xl p-4 relative group cursor-pointer hover:border-gold/40 transition"
               >
                 <div

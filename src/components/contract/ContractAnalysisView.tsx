@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Shield, AlertTriangle, CheckCircle, Loader2, FileSearch } from 'lucide-react';
-import { useNavigation } from '@/lib/navigation';
+
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/common/BackButton';
 
@@ -17,7 +17,6 @@ interface AnalysisResult {
 }
 
 export function ContractAnalysisView() {
-  const { navigate } = useNavigation();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -61,8 +60,9 @@ export function ContractAnalysisView() {
       <p className="text-sm text-muted-foreground mb-6">วางข้อความสัญญา → AI ตรวจหาข้อที่ผิดกฎหมายแรงงาน พร้อมอ้างอิงมาตรา</p>
 
       <div className="card-premium rounded-xl p-6 mb-6">
-        <label className="block text-sm font-medium mb-2">ข้อความสัญญา / เงื่อนไขการจ้าง</label>
+        <label htmlFor="contract-text" className="block text-sm font-medium mb-2">ข้อความสัญญา / เงื่อนไขการจ้าง</label>
         <textarea
+          id="contract-text"
           value={text}
           onChange={e => setText(e.target.value)}
           placeholder="วางข้อความสัญญาที่นี่..."
@@ -102,7 +102,7 @@ export function ContractAnalysisView() {
               <div className="flex items-center gap-2 mb-4"><AlertTriangle className="h-5 w-5 text-red-500" /><h2 className="text-lg font-semibold">จุดเสี่ยง ({result.citations.length})</h2></div>
               <div className="space-y-2">
                 {result.citations.map((c, i) => (
-                  <div key={i} className={`p-3 rounded-lg border ${i < 2 ? 'bg-red-500/10 border-red-500/30' : 'bg-orange-500/10 border-orange-500/30'}`}>
+                  <div key={`flag-${i}`} className={`p-3 rounded-lg border ${i < 2 ? 'bg-red-500/10 border-red-500/30' : 'bg-orange-500/10 border-orange-500/30'}`}>
                     <div className="flex items-start gap-2">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${i < 2 ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>{i < 2 ? 'ร้ายแรง' : 'ปานกลาง'}</span>
                       <div className="flex-1">
@@ -124,7 +124,7 @@ export function ContractAnalysisView() {
             <div className="flex items-center gap-2 mb-3"><CheckCircle className="h-5 w-5 text-green-600" /><h2 className="text-lg font-semibold">คำแนะนำ</h2></div>
             <ul className="space-y-2">
               {['แก้ไขข้อที่ผิดกฎหมายก่อนลงนาม', 'ปรึกษาทนายความตรวจสอบขั้นสุดท้าย', 'เก็บหลักฐานการแก้ไขทุกครั้ง'].map((r, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm"><span className="text-gold font-bold">{i + 1}.</span><span>{r}</span></li>
+                <li key={`rec-${i}`} className="flex items-start gap-2 text-sm"><span className="text-gold font-bold">{i + 1}.</span><span>{r}</span></li>
               ))}
             </ul>
           </div>

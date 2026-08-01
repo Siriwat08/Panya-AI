@@ -7,10 +7,17 @@ import { cn } from '@/lib/utils';
 
 interface PersonaOnboardingProps {
   /** Called when user picks a persona OR skips */
-  onClose: () => void;
+  readonly onClose: () => void;
 }
 
 const ICONS: Record<string, typeof Users> = { Users, Scale, Crown };
+
+/** Resolve persona card className based on selected/hovered state (extracted from nested ternary). */
+function getCardClass(isSelected: boolean, isHovered: boolean): string {
+  if (isSelected) return 'border-gold bg-gold/8 shadow-lg shadow-gold/10';
+  if (isHovered) return 'border-border/80 bg-accent/30';
+  return 'border-border/40 bg-card/30 hover:bg-accent/20';
+}
 
 export function PersonaOnboarding({ onClose }: PersonaOnboardingProps) {
   const [selected, setSelected] = useState<PersonaId | null>(null);
@@ -76,11 +83,7 @@ export function PersonaOnboarding({ onClose }: PersonaOnboardingProps) {
                 onMouseLeave={() => setHovered(null)}
                 className={cn(
                   'group relative text-left rounded-xl border p-5 transition-all duration-200',
-                  isSelected
-                    ? 'border-gold bg-gold/8 shadow-lg shadow-gold/10'
-                    : isHovered
-                    ? 'border-border/80 bg-accent/30'
-                    : 'border-border/40 bg-card/30 hover:bg-accent/20'
+                  getCardClass(isSelected, isHovered)
                 )}
               >
                 {/* Selected check badge */}
@@ -134,8 +137,8 @@ export function PersonaOnboarding({ onClose }: PersonaOnboardingProps) {
                 ตัวอย่างคำถามสำหรับ {PERSONAS[selected].label}
               </div>
               <ul className="space-y-1.5">
-                {PERSONAS[selected].sampleQuestions.slice(0, 3).map((q, i) => (
-                  <li key={i} className="text-xs text-foreground/80 flex items-start gap-2">
+                {PERSONAS[selected].sampleQuestions.slice(0, 3).map((q) => (
+                  <li key={q} className="text-xs text-foreground/80 flex items-start gap-2">
                     <span className="text-gold mt-0.5">▸</span>
                     <span>{q}</span>
                   </li>

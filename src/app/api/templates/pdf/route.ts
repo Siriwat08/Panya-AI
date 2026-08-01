@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   html = html.replace(/^---$/gm, '<hr/>');
 
   // Paragraphs
-  html = html.replace(/\n\n/g, '</p><p>');
+  html = html.replaceAll('\n\n', '</p><p>');
   html = '<p>' + html + '</p>';
 
   // Replace placeholders (Thai + English conventions)
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
   if (salary) {
     let salCount = 0;
-    html = html.replace(/(\d+)\s*บาท/g, (match, num) => {
+    html = html.replace(/(\d+)\sบาท/g, (match, num) => {
       if (salCount < 2 && Number.parseInt(num) < 1000) {
         salCount++;
         return `<u>&nbsp;${salary}&nbsp;</u> บาท`;

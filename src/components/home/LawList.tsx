@@ -19,6 +19,20 @@ const CATEGORY_LABEL: Record<string, { th: string; en: string }> = {
   other: { th: 'อื่นๆ', en: 'Other' },
 };
 
+/** Resolve law status badge className (extracted from nested ternary — SonarCloud S3358). */
+function getStatusBadgeClass(status: string): string {
+  if (status === 'repealed') return 'border-red-500/40 text-red-500 bg-red-500/10';
+  if (status === 'amended') return 'border-blue-500/40 text-blue-500 bg-blue-500/10';
+  return 'border-amber-500/40 text-amber-600 bg-amber-500/10';
+}
+
+/** Resolve law status label in Thai (extracted from nested ternary — SonarCloud S3358). */
+function getStatusLabel(status: string): string {
+  if (status === 'repealed') return 'ยกเลิก';
+  if (status === 'amended') return 'แก้ไขแล้ว';
+  return status;
+}
+
 export function LawList({ laws }: { readonly laws: LawSummary[] }) {
   const { navigate } = useNavigation();
   const [filter, setFilter] = useState<string>('all');
@@ -166,12 +180,8 @@ function LawCard({ law, onClick }: { readonly law: LawSummary; readonly onClick:
             <span className="text-gold">{law.laborSectionCount} แรงงาน</span>
           )}
           {law.status && law.status !== 'complete' && (
-            <Badge variant="outline" className={`text-[9px] ${
-              law.status === 'repealed' ? 'border-red-500/40 text-red-500 bg-red-500/10' :
-              law.status === 'amended' ? 'border-blue-500/40 text-blue-500 bg-blue-500/10' :
-              'border-amber-500/40 text-amber-600 bg-amber-500/10'
-            }`}>
-              {law.status === 'repealed' ? 'ยกเลิก' : law.status === 'amended' ? 'แก้ไขแล้ว' : law.status}
+            <Badge variant="outline" className={`text-[9px] ${getStatusBadgeClass(law.status)}`}>
+              {getStatusLabel(law.status)}
             </Badge>
           )}
         </div>
