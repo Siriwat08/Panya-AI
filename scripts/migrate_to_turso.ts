@@ -6,11 +6,19 @@
 
 import { createClient } from '@libsql/client'
 import { existsSync } from 'fs'
+import { join } from 'path'
 import { execFileSync } from 'child_process'
 
 const LOCAL_DB = process.argv[2] || '/home/z/my-project/db/custom.db'
 const TURSO_URL = process.argv[3] || ''
 const TURSO_TOKEN = process.argv[4] || ''
+
+// Use absolute path to python3 to avoid PATH lookup (SonarCloud S4036).
+// Allow override via PYTHON_BIN env var; default to /usr/bin/python3 (fixed, unwriteable).
+const PYTHON_BIN = process.env.PYTHON_BIN || '/usr/bin/python3'
+
+// Path to the extraction script (sibling of this file)
+const EXTRACT_SCRIPT = join(import.meta.dir, '_extract_sqlite.py')
 
 if (!TURSO_URL || !TURSO_TOKEN) {
   console.error('❌ Missing Turso URL or token')
@@ -39,38 +47,36 @@ try {
 
 // Step 1: Use Python to dump data to JSON per table (faster + cleaner than SQL dump)
 console.log('\n📤 Extracting data from local SQLite via Python...')
+console.log(`  Python: ${PYTHON_BIN}`)
+console.log(`  Script: ${EXTRACT_SCRIPT}`)
 
-// Pass the DB path via environment variable to avoid shell injection (S8701).
-// The Python script reads it from os.environ, so no string interpolation needed.
-const pythonScript = `
-import sqlite3, json, sys, os
-db_path = os.environ['PANYA_LOCAL_DB']
-conn = sqlite3.connect(db_path)
-conn.row_factory = sqlite3.Row
-tables = ['sources', 'laws', 'law_sections', 'case_judgments', 'case_law_links', 'ingestion_log', 'rag_chunks']
-out = {}
-for t in tables:
-    try:
-        cur = conn.execute(f'SELECT * FROM {t}')
-        cols = [d[0] for d in cur.description]
-        rows = [dict(zip(cols, r)) for r in cur.fetchall()]
-        out[t] = {'columns': cols, 'rows': rows}
-        print(f'  {t}: {len(rows)} rows', file=sys.stderr)
-    except Exception as e:
-        out[t] = {'error': str(e)}
-        print(f'  {t}: ERROR {e}', file=sys.stderr)
-conn.close()
-print(json.dumps(out, default=str, ensure_ascii=False))
-`
+if (!existsSync(EXTRACT_SCRIPT)) {
+  console.error(`❌ Extraction script not found: ${EXTRACT_SCRIPT}`)
+  process.exit(1)
+}
+
+if (!existsSync(PYTHON_BIN)) {
+  console.error(`❌ Python not found at: ${PYTHON_BIN}`)
+  console.error('   Set PYTHON_BIN env var to your python3 absolute path')
+  process.exit(1)
+}
 
 let data: any
 try {
-  // execFileSync with input — no shell, no command injection possible (S8701).
-  const result = execFileSync('python3', ['-c', pythonScript], {
+  // Use absolute path to python3 (no PATH lookup → S4036 safe).
+  // Execute external script file (no -c flag → no inline code execution).
+  // Pass DB path via env var (no string interpolation → S8701 safe).
+  // No shell involved (execFileSync, not execSync → no command injection).
+  const result = execFileSync(PYTHON_BIN, [EXTRACT_SCRIPT], {
     maxBuffer: 500 * 1024 * 1024, // 500 MB
     encoding: 'utf-8',
-    input: '',
-    env: { ...process.env, PANYA_LOCAL_DB: LOCAL_DB },
+    // Only pass necessary env vars — don't inherit full process.env (S4036).
+    env: {
+      PANYA_LOCAL_DB: LOCAL_DB,
+      HOME: process.env.HOME || '/tmp',
+      // Minimal PATH for Python's internal use (e.g., sqlite3 module)
+      PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+    },
   })
   data = JSON.parse(result)
 } catch (e: any) {
