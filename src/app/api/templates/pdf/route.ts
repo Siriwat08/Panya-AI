@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
   if (salary) {
     let salCount = 0;
-    html = html.replace(/(\d+) บาท/g, (match, num) => {
+    html = html.replace(/(\d{1,6}) บาท/g, (match, num) => {
       if (salCount < 2 && Number.parseInt(num) < 1000) {
         salCount++;
         return `<u>&nbsp;${salary}&nbsp;</u> บาท`;
