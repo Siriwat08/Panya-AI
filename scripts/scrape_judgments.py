@@ -49,7 +49,7 @@ BASE_URL = 'https://www.supremecourt.or.th'
 # rather than guessing a fictional path. Real URL: http://deka.supremecourt.or.th/
 SEARCH_URL = 'https://deka.supremecourt.or.th/search/list'
 USER_AGENT = 'Panya-AI-Judgment-Scraper/1.0 (+https://github.com/Siriwat08/Panya-AI)'
-TIMEOUT_SEC = 20
+TIMEOUT_SEC = 10  # Reduced from 20s — Supreme Court may be slow but we don't want to block cron
 
 # ---------------------------------------------------------------------------
 # DB
@@ -264,14 +264,36 @@ def notify_ingest(conn, year_be: int, count: int) -> None:
     )
 
 def get_latest_judgment_year(conn) -> int:
-    """Returns the latest case_year in DB, or 2550 if DB is empty."""
-    cur = conn.execute(
-        "SELECT MAX(CAST(case_year AS INTEGER)) as max_year FROM case_judgments "
-        "WHERE case_year GLOB '[0-9]*'"
-    )
-    row = cur.fetchone()
-    if row and row['max_year']:
-        return int(row['max_year'])
+    """Returns the latest year in DB, or 2550 if DB is empty.
+
+    Tries both table schemas:
+      - Turso production: 'judgments' table with 'year' column
+      - Local SQLite: 'case_judgments' table with 'case_year' column
+    """
+    # Try Turso production schema first (judgments table, year column)
+    try:
+        cur = conn.execute(
+            "SELECT MAX(CAST(year AS INTEGER)) as max_year FROM judgments "
+            "WHERE year IS NOT NULL AND year != ''"
+        )
+        row = cur.fetchone()
+        if row and row.get('max_year'):
+            return int(row['max_year'])
+    except Exception:
+        pass  # Table doesn't exist or wrong schema — try fallback
+
+    # Fallback: local SQLite schema (case_judgments table, case_year column)
+    try:
+        cur = conn.execute(
+            "SELECT MAX(CAST(case_year AS INTEGER)) as max_year FROM case_judgments "
+            "WHERE case_year GLOB '[0-9]*'"
+        )
+        row = cur.fetchone()
+        if row and row.get('max_year'):
+            return int(row['max_year'])
+    except Exception:
+        pass
+
     return 2550  # default: start from B.E. 2551
 
 # ---------------------------------------------------------------------------
@@ -350,12 +372,23 @@ def main() -> int:
     print()
 
     total_inserted = 0
+    consecutive_failures = 0
+    MAX_CONSECUTIVE_FAILURES = 3  # If 3 years in a row fail, source is likely down — stop early
     for y in years:
         n, msg = scrape_year(y, dry_run=args.dry_run, db_path=args.db)
         total_inserted += n
         print(f'  [B.E. {y}] {msg}', flush=True)
+        if n == 0 and 'fetch failed' in msg:
+            consecutive_failures += 1
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                print(f'\n  ⚠️  {MAX_CONSECUTIVE_FAILURES} consecutive failures — stopping early.')
+                print(f'  Source may be down. Remaining years enqueued for retry.')
+                break
+        else:
+            consecutive_failures = 0
 
     print(f'\nTotal inserted: {total_inserted}')
+    # Exit 0 — fetch failures are retryable (years are enqueued in ingestion_queue)
     return 0
 
 if __name__ == '__main__':

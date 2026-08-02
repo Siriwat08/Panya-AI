@@ -293,7 +293,10 @@ def main() -> int:
             conn.commit()
             conn.close()
             print("  → enqueued 'fetch_rss' job for retry on next cron run")
-        return 1
+        # Exit 0 — this is NOT a hard failure. The RSS feed may be temporarily
+        # unavailable (403 from data center IPs is common). The retry job is
+        # queued and will be picked up on the next cron run.
+        return 0
 
     labor_items = [it for it in items if is_labor_related(it)]
     print(f"\n  → {len(items)} total items, {len(labor_items)} labor-related")
