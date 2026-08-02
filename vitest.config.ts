@@ -21,6 +21,8 @@ export default defineConfig({
         'src/lib/navigation.ts',
         'src/lib/rag.ts',
         'src/lib/zai-client.ts',
+        'src/lib/chat-sessions.ts',
+        'src/lib/recently-viewed.ts',
         'src/**/*.test.*',
         'src/**/*.spec.*',
       ],
