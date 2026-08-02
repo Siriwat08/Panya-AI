@@ -60,11 +60,14 @@ def main():
     conn.commit()
     print(f'    inserted regulation_id={reg_id}')
 
-    # 2. Verify trigger synced to FTS
+    # 2. Verify trigger synced to FTS (count for THIS regulation_id, not total)
     print('\n[2] Verifying FTS trigger sync (AFTER INSERT)...')
-    n = conn.execute('SELECT COUNT(*) FROM regulations_fts_v2').fetchone()[0]
-    print(f'    regulations_fts_v2 count: {n} (expected: >=1)')
-    assert n >= 1, f'FTS sync failed — expected >=1 row, got {n}'
+    n = conn.execute(
+        'SELECT COUNT(*) FROM regulations_fts_v2 WHERE rowid = ?',
+        (reg_id,),
+    ).fetchone()[0]
+    print(f'    FTS row for reg_id={reg_id}: {n} (expected: 1)')
+    assert n == 1, f'FTS sync failed — expected 1 row for reg_id={reg_id}, got {n}'
     print('    PASS')
 
     # 3. Query via FTS5 (mimics RAG's regulation query)
@@ -83,7 +86,10 @@ def main():
             (term,),
         ).fetchall()
         print(f'    MATCH {term!r}: {len(results)} result(s)')
-        assert len(results) >= 1, f'FTS query for {term!r} failed — expected >=1, got {len(results)}'
+        # At least our test regulation should match (others may also match
+        # if the seed_regulations.py script has been run)
+        our_match = any(r[0] == reg_id for r in results)
+        assert our_match, f'FTS query for {term!r} did not match our test regulation (reg_id={reg_id})'
     print('    PASS')
 
     # 4. Query with English/numeric terms
@@ -116,12 +122,15 @@ def main():
     assert results[0][0] == 'Updated title ค่าจ้าง'
     print('    PASS')
 
-    # 6. Test DELETE trigger
+    # 6. Test DELETE trigger (verify FTS row for THIS reg_id is gone)
     print('\n[6] Testing DELETE trigger (cleanup)...')
     conn.execute('DELETE FROM regulations WHERE regulation_id = ?', (reg_id,))
     conn.commit()
-    n_after = conn.execute('SELECT COUNT(*) FROM regulations_fts_v2').fetchone()[0]
-    print(f'    regulations_fts_v2 count after delete: {n_after} (expected: 0)')
+    n_after = conn.execute(
+        'SELECT COUNT(*) FROM regulations_fts_v2 WHERE rowid = ?',
+        (reg_id,),
+    ).fetchone()[0]
+    print(f'    FTS row for reg_id={reg_id} after delete: {n_after} (expected: 0)')
     assert n_after == 0, f'FTS delete trigger failed — expected 0, got {n_after}'
     print('    PASS')
 
