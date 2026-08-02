@@ -57,7 +57,12 @@ export function JudgmentView({ judgmentId }: { readonly judgmentId: number }) {
         if (!r.ok) throw new Error('Judgment not found');
         return r.json();
       })
-      .then(setData)
+      .then(data => {
+        setData(data);
+        import('@/lib/recently-viewed').then(({ addRecentlyViewed }) => {
+          addRecentlyViewed({ type: 'judgment', id: judgmentId, label: `ฎีกา ${data.caseNumber}${data.title ? ' — ' + data.title : ''}`, url: `/?view=judgment&id=${judgmentId}` });
+        });
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [judgmentId]);

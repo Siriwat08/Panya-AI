@@ -300,7 +300,18 @@ export function AskView() {
               variant="ghost"
               size="sm"
               className="text-xs text-muted-foreground hover:text-foreground gap-1"
-              onClick={() => setMessages([])}
+              onClick={() => {
+                // Save current session before clearing
+                if (messages.length > 0) {
+                  import('@/lib/chat-sessions').then(({ createChatSession, saveChatSession }) => {
+                    const session = createChatSession(messages as any[], personaId);
+                    saveChatSession(session);
+                  });
+                }
+                setMessages([]);
+                sessionStorage.removeItem('panya_chat_messages');
+                sessionStorage.removeItem('panya_chat_input');
+              }}
             >
               <RotateCcw className="h-3.5 w-3.5" />
               เริ่มใหม่

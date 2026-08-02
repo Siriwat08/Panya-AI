@@ -63,7 +63,13 @@ export function LawView({ lawId }: { readonly lawId: number }) {
         if (!r.ok) throw new Error('Law not found');
         return r.json();
       })
-      .then(setLaw)
+      .then(data => {
+        setLaw(data);
+        // Track in recently viewed
+        import('@/lib/recently-viewed').then(({ addRecentlyViewed }) => {
+          addRecentlyViewed({ type: 'law', id: lawId, label: data.lawNameTh || data.title || `กฎหมาย #${lawId}`, url: `/?view=law&id=${lawId}` });
+        });
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [lawId, searchQ]);

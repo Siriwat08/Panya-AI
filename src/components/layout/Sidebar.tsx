@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, FileText, Menu, X, ChevronLeft, Grid3x3, FileSearch, Wand2 } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { PersonaSwitcher } from '@/components/onboarding/PersonaSwitcher';
+import { RecentlyViewed } from '@/components/common/RecentlyViewed';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -170,6 +171,9 @@ export function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Recently viewed — quick access to recently opened items */}
+        {!collapsed && <RecentlyViewed />}
 
         {/* User info — show email + persona switcher */}
         {!collapsed && (

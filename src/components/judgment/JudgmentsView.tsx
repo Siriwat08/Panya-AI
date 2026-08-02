@@ -60,9 +60,38 @@ export function JudgmentsView() {
           คำพิพากษาศาลฎีกา
         </h1>
         <p className="text-sm text-muted-foreground">
-          รวบรวมคำพิพากษาฎีกาจาก deka.in.th, ops.mol.go.th และ TSCC Dataset
+          รวบรวมคำพิพากษาฎีกาจาก deka.in.th, ops.mol.go.th และ TSCC Dataset — {data?.total || 0} คดี
         </p>
       </div>
+
+      {/* Latest judgments highlight (page 1 only) */}
+      {page === 1 && data && data.data.length > 0 && (
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {data.data.slice(0, 3).map((j, i) => {
+            const isLatest = i === 0;
+            return (
+              <button
+                type="button"
+                key={`latest-${j.judgmentId}`}
+                onClick={() => navigate({ name: 'judgment', judgmentId: j.judgmentId })}
+                className={`card-premium rounded-xl p-4 text-left group cursor-pointer ${isLatest ? 'border-gold/30 bg-gold/5' : ''}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  {isLatest && <span className="text-[9px] font-bold uppercase tracking-wider text-gold bg-gold/10 px-1.5 py-0.5 rounded">ล่าสุด</span>}
+                  <Badge variant="outline" className="badge-gold text-[10px]">{j.caseNumber}</Badge>
+                  {j.caseYear && <span className="text-[10px] text-muted-foreground">ปี {j.caseYear}</span>}
+                </div>
+                {(j.topicsList || []).slice(0, 2).map((t: string, ti: number) => (
+                  <span key={ti} className="inline-block px-1.5 py-0.5 mr-1 mb-1 rounded bg-gold/10 border border-gold/15 text-[10px] text-gold/90">{t}</span>
+                ))}
+                <h3 className="text-sm font-semibold text-foreground group-hover:text-gold transition line-clamp-2 mt-1">
+                  {j.title || '(ไม่ระบุประเด็น)'}
+                </h3>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Category filter */}
       <div className="flex flex-wrap gap-2 mb-6">

@@ -45,7 +45,13 @@ export function SectionView({ sectionId }: { readonly sectionId: number }) {
         if (!r.ok) throw new Error('Section not found');
         return r.json();
       })
-      .then(setData)
+      .then(data => {
+        setData(data);
+        import('@/lib/recently-viewed').then(({ addRecentlyViewed }) => {
+          const label = `${data.lawNameTh} มาตรา ${data.articleKey || data.sectionNumber || ''}`;
+          addRecentlyViewed({ type: 'section', id: sectionId, label, url: `/?view=section&id=${sectionId}` });
+        });
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [sectionId]);
