@@ -40,7 +40,7 @@ TURSO_URL = (
     os.environ.get('TURSO_URL', '')
     or os.environ.get('TURSO_DATABASE_URL', '')
     or os.environ.get('DATABASE_URL', '')
-)
+).strip()  # Strip whitespace/newlines that may come from secret copy-paste
 # Normalize libsql:// to https:// for HTTP API
 if TURSO_URL.startswith('libsql://'):
     TURSO_URL = 'https://' + TURSO_URL[len('libsql://'):]
@@ -49,9 +49,21 @@ TURSO_TOKEN = (
     os.environ.get('TURSO_TOKEN')
     or os.environ.get('TURSO_AUTH_TOKEN')
     or ''
-)
+).strip()  # Strip whitespace/newlines — critical for HTTP header validity
 
 USE_TURSO = bool(TURSO_URL and TURSO_TOKEN)
+
+# Validate token format (must be ASCII, no control chars)
+if USE_TURSO:
+    try:
+        TURSO_TOKEN.encode('ascii')
+    except UnicodeEncodeError:
+        print(f'[db_client] ERROR: TURSO_TOKEN contains non-ASCII characters', file=sys.stderr)
+        USE_TURSO = False
+    # Check for control characters (newlines, tabs, etc.)
+    if any(ord(c) < 32 or ord(c) == 127 for c in TURSO_TOKEN):
+        print(f'[db_client] ERROR: TURSO_TOKEN contains control characters (newline/tab)', file=sys.stderr)
+        USE_TURSO = False
 
 # ---------------------------------------------------------------------------
 # Turso HTTP API client
