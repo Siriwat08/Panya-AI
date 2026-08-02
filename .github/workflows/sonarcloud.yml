@@ -40,6 +40,12 @@ jobs:
           TURSO_AUTH_TOKEN: placeholder
           OPENROUTER_API_KEY: placeholder
 
+      - name: Run tests with coverage
+        run: bunx vitest run --coverage
+        env:
+          DATABASE_URL: file:/tmp/placeholder.db
+          TURSO_AUTH_TOKEN: placeholder
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v8
         env:
