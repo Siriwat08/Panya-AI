@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, X, BookOpen, Scale, FileText } from 'lucide-react';
+import { Clock, BookOpen, Scale, FileText } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { getRecentlyViewed, clearRecentlyViewed, type RecentlyViewedItem } from '@/lib/recently-viewed';
 

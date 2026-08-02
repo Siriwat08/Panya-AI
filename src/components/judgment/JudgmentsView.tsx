@@ -81,8 +81,8 @@ export function JudgmentsView() {
                   <Badge variant="outline" className="badge-gold text-[10px]">{j.caseNumber}</Badge>
                   {j.caseYear && <span className="text-[10px] text-muted-foreground">ปี {j.caseYear}</span>}
                 </div>
-                {(j.topicsList || []).slice(0, 2).map((t: string, ti: number) => (
-                  <span key={ti} className="inline-block px-1.5 py-0.5 mr-1 mb-1 rounded bg-gold/10 border border-gold/15 text-[10px] text-gold/90">{t}</span>
+                {(j.topicsList || []).slice(0, 2).map((t: string) => (
+                  <span key={t} className="inline-block px-1.5 py-0.5 mr-1 mb-1 rounded bg-gold/10 border border-gold/15 text-[10px] text-gold/90">{t}</span>
                 ))}
                 <h3 className="text-sm font-semibold text-foreground group-hover:text-gold transition line-clamp-2 mt-1">
                   {j.title || '(ไม่ระบุประเด็น)'}

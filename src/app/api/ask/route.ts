@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { retrieveRelevant, buildContext, buildCitations } from '@/lib/rag';
 import { createChatCompletion } from '@/lib/zai-client';
-import { PERSONAS, type PersonaId, type Persona } from '@/lib/persona';
 import { parseRequestBody, resolvePersona, type AskBody } from '@/lib/api-helpers/ask';
 
 export const dynamic = 'force-dynamic';
@@ -193,85 +192,69 @@ F14=NDA F15=Non-compete F20=ลดค่าจ้าง F22=พักงาน
 // API ROUTE
 // ============================================================
 
-export async function POST(req: NextRequest) {
-  let body: AskBody;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
-
-  // Validate request body
-  const parsed = parseRequestBody(body);
-  if ('error' in parsed) {
-    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
-  }
-  const question = parsed.question;
-
-  // 0. Resolve persona (from request body — set by frontend from localStorage)
-  const personaInfo = resolvePersona(body);
-  const personaId = personaInfo?.id ?? null;
-  const persona = personaInfo?.persona ?? null;
-
-  // 1. Route to appropriate sub-skill
-  let skill = selectSkill(question, SKILLS);
-  // Persona-based skill override: if persona has a strong preference, use it when scoring is close
+/** Resolve the best sub-skill, applying persona override if needed. */
+function resolveSkill(question: string, persona: any, skills: SubSkill[]): SubSkill {
+  let skill = selectSkill(question, skills);
   if (persona && skill.name === 'legal-qa') {
-    // No keyword match → use persona's primary skill
     const preferredSkillName = persona.skillPriority[0];
-    const preferred = SKILLS.find(s => s.name === preferredSkillName);
+    const preferred = skills.find(s => s.name === preferredSkillName);
     if (preferred) skill = preferred;
   }
-  // Log only safe metadata — no user input in log messages (CodeQL: log injection)
-  console.log(`[ask] persona=${personaId ? 'set' : 'none'} skill=${skill.name}`);
+  return skill;
+}
 
-  // 2. RAG: ดึงข้อมูลที่เกี่ยวข้อง (ใช้ topK และ laborOnly ของ skill — หรือ persona override)
-  // Use nullish coalescing for cleaner fallback (SonarCloud S6606 + S3358)
-  const laborOnly = body.laborOnly ?? persona?.laborOnly ?? skill.laborOnly;
-  const hits = await retrieveRelevant(question, {
-    topK: skill.topK,
-    laborOnly,
-  });
-  const context = buildContext(hits);
-  const citations = buildCitations(hits);
-
-  // 3. Build message with persona prefix + skill prompt
-  const personaPrefix = persona ? persona.promptPrefix + '\n\n' : '';
-  const systemPrompt = personaPrefix + skill.prompt;
-
-  const userMsg = `คำถาม: ${question}
-
-ข้อมูลอ้างอิงจากฐานข้อมูล Panya-AI:
-${context}
-
-วิเคราะห์และตอบในฐานะ Legal Strategist ฝั่งนายจ้าง อ้างอิง [N] จาก context ข้างต้น`;
-
+/** Build the message array for the LLM call. */
+function buildMessages(
+  systemPrompt: string, question: string, context: string,
+  history?: { role: 'user' | 'assistant'; content: string }[]
+): { role: 'system' | 'user' | 'assistant'; content: string }[] {
+  const userMsg = `คำถาม: ${question}\n\nข้อมูลอ้างอิงจากฐานข้อมูล Panya-AI:\n${context}\n\nวิเคราะห์และตอบในฐานะ Legal Strategist ฝั่งนายจ้าง อ้างอิง [N] จาก context ข้างต้น`;
   const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
     { role: 'system', content: systemPrompt },
   ];
-  if (body.history && Array.isArray(body.history)) {
-    for (const m of body.history.slice(-4)) {
+  if (history && Array.isArray(history)) {
+    for (const m of history.slice(-4)) {
       if (m.role === 'user' || m.role === 'assistant') messages.push({ role: m.role, content: m.content });
     }
   }
   messages.push({ role: 'user', content: userMsg });
+  return messages;
+}
 
-  // 4. Call AI
+export async function POST(req: NextRequest) {
+  let body: AskBody;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+
+  const parsed = parseRequestBody(body);
+  if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const question = parsed.question;
+
+  const personaInfo = resolvePersona(body);
+  const personaId = personaInfo?.id ?? null;
+  const persona = personaInfo?.persona ?? null;
+
+  const skill = resolveSkill(question, persona, SKILLS);
+  console.log(`[ask] persona=${personaId ? 'set' : 'none'} skill=${skill.name}`);
+
+  const laborOnly = body.laborOnly ?? persona?.laborOnly ?? skill.laborOnly;
+  const hits = await retrieveRelevant(question, { topK: skill.topK, laborOnly });
+  const context = buildContext(hits);
+  const citations = buildCitations(hits);
+
+  const personaPrefix = persona ? persona.promptPrefix + '\n\n' : '';
+  const messages = buildMessages(personaPrefix + skill.prompt, question, context, body.history);
+
   try {
     const { content: aiContent } = await createChatCompletion(messages);
-    const content = aiContent || `ขออภัย ไม่สามารถสร้างคำตอบได้`;
     return NextResponse.json({
-      answer: content,
-      citations,
-      retrievedChunks: hits.length,
-      skill: skill.name, // ส่งชื่อ skill กลับไปให้ frontend แสดง
-      persona: personaId,
+      answer: aiContent || 'ขออภัย ไม่สามารถสร้างคำตอบได้',
+      citations, retrievedChunks: hits.length, skill: skill.name, persona: personaId,
     });
   } catch (e: any) {
     console.error('AI failed:', e);
     return NextResponse.json({
-      error: 'AI service error',
-      message: e?.message || '',
-      citations,
-      retrievedChunks: hits.length,
-      skill: skill.name,
-      persona: personaId,
+      error: 'AI service error', message: e?.message || '',
+      citations, retrievedChunks: hits.length, skill: skill.name, persona: personaId,
     }, { status: 500 });
   }
 }

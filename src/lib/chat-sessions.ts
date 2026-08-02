@@ -83,9 +83,11 @@ export function createChatSession(
   persona?: string | null
 ): ChatSession {
   const firstUserMsg = messages.find(m => m.role === 'user');
-  const title = firstUserMsg
-    ? firstUserMsg.content.slice(0, 60) + (firstUserMsg.content.length > 60 ? '...' : '')
-    : 'การสนทนาใหม่';
+  let title = 'การสนทนาใหม่';
+  if (firstUserMsg) {
+    const truncated = firstUserMsg.content.slice(0, 60);
+    title = firstUserMsg.content.length > 60 ? truncated + '...' : truncated;
+  }
 
   return {
     id: `chat-${Date.now()}`,
