@@ -75,10 +75,10 @@ export function DataDashboardView() {
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
-        {cards.map((card, i) => {
+        {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={i} className="card-premium rounded-xl p-4">
+            <div key={card.label} className="card-premium rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Icon className={`h-5 w-5 ${card.color}`} />
                 <span className="text-xs font-medium text-muted-foreground">{card.label}</span>
@@ -97,12 +97,12 @@ export function DataDashboardView() {
           กฎหมายแยกตามหมวด
         </h2>
         <div className="space-y-3">
-          {stats.lawsByCategory?.map((cat, i) => {
+          {stats.lawsByCategory?.map((cat) => {
             const label = CATEGORY_LABELS[cat.category] || cat.category;
             const maxSections = Math.max(...stats.lawsByCategory.map(c => c.sectionCount));
             const pct = maxSections > 0 ? (cat.sectionCount / maxSections) * 100 : 0;
             return (
-              <div key={i}>
+              <div key={cat.category}>
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="font-medium">{label}</span>
                   <span className="text-muted-foreground">

@@ -5,6 +5,8 @@
  * RSS source: https://ratchakitcha.soc.go.th/RATCHAKICHA/FEED/RSS
  */
 
+import { stripHtml, truncateText } from '../src/lib/sanitize';
+
 const RSS_URL = 'https://ratchakitcha.soc.go.th/RATCHAKICHA/FEED/RSS';
 const KEYWORDS = [
   'แรงงาน', 'คุ้มครองแรงงาน', 'ประกันสังคม', 'เงินทดแทน',
@@ -73,9 +75,13 @@ async function createGitHubIssue(items: RSSItem[]) {
   const dateStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const body = items.map((item, i) => {
-    const title = item.title.replace(/<[^>]+>/g, '').trim();
-    const desc = item.description.replace(/<[^>]+>/g, '').trim().slice(0, 200);
-    return `### ${i + 1}. ${title}\n\n📅 ${item.pubDate}\n🔗 ${item.link}\n\n> ${desc}...\n`;
+    // Use the CodeQL-safe stripHtml() helper instead of regex-based stripping.
+    // The previous `/<[^>]+>/g` pattern was flagged as "Incomplete multi-character
+    // sanitization" because it skipped HTML comments, CDATA sections, <script>
+    // blocks, and undecoded HTML entities.
+    const title = stripHtml(item.title);
+    const desc = truncateText(stripHtml(item.description), 200);
+    return `### ${i + 1}. ${title}\n\n📅 ${item.pubDate}\n🔗 ${item.link}\n\n> ${desc}\n`;
   }).join('\n---\n\n');
 
   const issueBody = `## 📢 กฎหมายใหม่จากราชกิจจานุเบกษา — ${dateStr}\n\nพบ ${items.length} ฉบับที่เกี่ยวข้องกับระบบ Panya-AI:\n\n${body}\n\n---\n⚠️ กรุณาตรวจสอบและพิจารณานำเข้าระบบหากจำเป็น\n\n_แจ้งโดย Panya-AI Legal Update Monitor_`;
