@@ -44,6 +44,10 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
+# Import shared DB client (supports both Turso + local SQLite)
+sys.path.insert(0, str(Path(__file__).parent))
+from db_client import get_db, is_using_turso
+
 DB_PATH = Path(__file__).parent.parent / 'prisma' / 'thai_legal_db.sqlite'
 
 # RSS feeds in priority order
@@ -67,13 +71,10 @@ LABOR_KEYWORDS = [
 # ---------------------------------------------------------------------------
 # DB
 # ---------------------------------------------------------------------------
-def db_conn(db_path: Path) -> sqlite3.Connection:
-    if not db_path.exists():
-        print(f"ERROR: DB not found at {db_path}", file=sys.stderr)
-        sys.exit(1)
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
-    # Ensure tables exist (idempotent — matches Phase 10.1 schema)
+def db_conn(db_path: Path = None):
+    """Get a DB connection (Turso in production, SQLite in dev).
+    Ensures required tables exist (idempotent)."""
+    conn = get_db(db_path)
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS law_update_notifications (
             notification_id   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -203,14 +204,14 @@ def normalize_pub_date(pub_date: str) -> str:
 # ---------------------------------------------------------------------------
 # Insert
 # ---------------------------------------------------------------------------
-def is_duplicate(conn: sqlite3.Connection, source_url: str, title: str) -> bool:
+def is_duplicate(conn, source_url: str, title: str) -> bool:
     cur = conn.execute(
         'SELECT 1 FROM law_update_notifications WHERE source_url = ? OR title = ? LIMIT 1',
-        (source_url, title),
+        [source_url, title],
     )
     return cur.fetchone() is not None
 
-def insert_notification(conn: sqlite3.Connection, item: dict) -> bool:
+def insert_notification(conn, item: dict) -> bool:
     """Returns True if inserted, False if duplicate."""
     if not item['title']:
         return False
@@ -225,7 +226,7 @@ def insert_notification(conn: sqlite3.Connection, item: dict) -> bool:
              publication_date, source_url, summary, status, severity)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'unread', ?)
         """,
-        (
+        [
             datetime.now(timezone.utc).isoformat(),
             'ratchakitcha_rss',
             update_type,
@@ -235,22 +236,22 @@ def insert_notification(conn: sqlite3.Connection, item: dict) -> bool:
             item['link'] or item['guid'],
             item['description'][:1000] if item['description'] else None,
             severity,
-        ),
+        ],
     )
     return True
 
-def enqueue_failed_fetch(conn: sqlite3.Connection, reason: str) -> None:
+def enqueue_failed_fetch(conn, reason: str) -> None:
     conn.execute(
         """
         INSERT INTO ingestion_queue (job_type, payload, status, created_at, error_message)
         VALUES (?, ?, 'queued', ?, ?)
         """,
-        (
+        [
             'fetch_rss',
             json.dumps({'feeds': RSS_FEEDS}, ensure_ascii=False),
             datetime.now(timezone.utc).isoformat(),
             reason,
-        ),
+        ],
     )
 
 # ---------------------------------------------------------------------------
@@ -261,11 +262,12 @@ def main() -> int:
     ap.add_argument('--dry-run', action='store_true',
                     help='Do not write to DB, just print what would be inserted')
     ap.add_argument('--db', type=Path, default=DB_PATH,
-                    help=f'Path to SQLite DB (default: {DB_PATH})')
+                    help=f'Path to SQLite DB (default: {DB_PATH}, ignored when TURSO_URL is set)')
     args = ap.parse_args()
 
     print(f"[{datetime.now(timezone.utc).isoformat()}] Phase 10.3 — RSS monitor")
-    print(f"  DB: {args.db}")
+    target = 'Turso (production)' if is_using_turso() else f'local SQLite: {args.db}'
+    print(f"  DB target: {target}")
     print(f"  dry_run: {args.dry_run}")
     print()
 
@@ -286,9 +288,10 @@ def main() -> int:
     if not items:
         print(f"\n[warn] no items parsed. last error: {fetch_error}")
         if not args.dry_run:
-            with db_conn(args.db) as conn:
-                enqueue_failed_fetch(conn, fetch_error or 'no items')
-                conn.commit()
+            conn = db_conn(args.db)
+            enqueue_failed_fetch(conn, fetch_error or 'no items')
+            conn.commit()
+            conn.close()
             print("  → enqueued 'fetch_rss' job for retry on next cron run")
         return 1
 
@@ -304,11 +307,12 @@ def main() -> int:
         return 0
 
     inserted = 0
-    with db_conn(args.db) as conn:
-        for it in labor_items:
-            if insert_notification(conn, it):
-                inserted += 1
-        conn.commit()
+    conn = db_conn(args.db)
+    for it in labor_items:
+        if insert_notification(conn, it):
+            inserted += 1
+    conn.commit()
+    conn.close()
 
     print(f"\n  ✓ inserted {inserted} new notification(s)")
     if inserted == 0:

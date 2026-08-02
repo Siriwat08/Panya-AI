@@ -39,6 +39,10 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Import shared DB client (supports both Turso + local SQLite)
+sys.path.insert(0, str(Path(__file__).parent))
+from db_client import get_db, is_using_turso
+
 DB_PATH = Path(__file__).parent.parent / 'prisma' / 'thai_legal_db.sqlite'
 BASE_URL = 'https://www.supremecourt.or.th'
 # The Supreme Court judgment search endpoint — we use the public search URL
@@ -50,13 +54,10 @@ TIMEOUT_SEC = 20
 # ---------------------------------------------------------------------------
 # DB
 # ---------------------------------------------------------------------------
-def db_conn(db_path: Path) -> sqlite3.Connection:
-    if not db_path.exists():
-        print(f"ERROR: DB not found at {db_path}", file=sys.stderr)
-        sys.exit(1)
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
-    # Ensure tables exist (idempotent)
+def db_conn(db_path: Path = None):
+    """Get a DB connection (Turso in production, SQLite in dev).
+    Ensures required tables exist (idempotent)."""
+    conn = get_db(db_path)
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS case_judgments (
             judgment_id     INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -197,7 +198,7 @@ def parse_judgment_list_html(html: bytes, default_category: str = 'labor') -> li
 # ---------------------------------------------------------------------------
 # Insert into DB
 # ---------------------------------------------------------------------------
-def insert_judgment(conn: sqlite3.Connection, j: dict) -> bool:
+def insert_judgment(conn, j: dict) -> bool:
     """Returns True if inserted, False if duplicate."""
     cur = conn.execute(
         'SELECT judgment_id FROM case_judgments WHERE case_number = ? AND case_year = ? LIMIT 1',
@@ -225,7 +226,7 @@ def insert_judgment(conn: sqlite3.Connection, j: dict) -> bool:
     )
     return True
 
-def enqueue_failed_year(conn: sqlite3.Connection, year_be: int, reason: str) -> None:
+def enqueue_failed_year(conn, year_be: int, reason: str) -> None:
     conn.execute(
         """
         INSERT INTO ingestion_queue (job_type, payload, status, created_at, error_message)
@@ -239,7 +240,7 @@ def enqueue_failed_year(conn: sqlite3.Connection, year_be: int, reason: str) -> 
         ),
     )
 
-def notify_ingest(conn: sqlite3.Connection, year_be: int, count: int) -> None:
+def notify_ingest(conn, year_be: int, count: int) -> None:
     """Insert a law_update_notification for the scraped batch."""
     conn.execute(
         """
@@ -262,7 +263,7 @@ def notify_ingest(conn: sqlite3.Connection, year_be: int, count: int) -> None:
         ),
     )
 
-def get_latest_judgment_year(conn: sqlite3.Connection) -> int:
+def get_latest_judgment_year(conn) -> int:
     """Returns the latest case_year in DB, or 2550 if DB is empty."""
     cur = conn.execute(
         "SELECT MAX(CAST(case_year AS INTEGER)) as max_year FROM case_judgments "
@@ -283,9 +284,10 @@ def scrape_year(year_be: int, dry_run: bool = False, db_path: Path = DB_PATH) ->
     if status != 200 or body is None:
         msg = f'fetch failed for B.E. {year_be}: {err or status}'
         if not dry_run:
-            with db_conn(db_path) as conn:
-                enqueue_failed_year(conn, year_be, msg)
-                conn.commit()
+            conn = db_conn(db_path)
+            enqueue_failed_year(conn, year_be, msg)
+            conn.commit()
+            conn.close()
         return 0, msg
 
     entries = parse_judgment_list_html(body, default_category='labor')
@@ -297,13 +299,14 @@ def scrape_year(year_be: int, dry_run: bool = False, db_path: Path = DB_PATH) ->
         return 0, f'DRY-RUN: would insert {len(entries)} entries for B.E. {year_be}'
 
     inserted = 0
-    with db_conn(db_path) as conn:
-        for j in entries:
-            j['source_url'] = list_url
-            if insert_judgment(conn, j):
-                inserted += 1
-        notify_ingest(conn, year_be, inserted)
-        conn.commit()
+    conn = db_conn(db_path)
+    for j in entries:
+        j['source_url'] = list_url
+        if insert_judgment(conn, j):
+            inserted += 1
+    notify_ingest(conn, year_be, inserted)
+    conn.commit()
+    conn.close()
 
     return inserted, f'inserted {inserted}/{len(entries)} for B.E. {year_be}'
 
@@ -323,7 +326,8 @@ def main() -> int:
     current_be = now.year + 543
 
     print(f'[{now.isoformat()}] Phase 10.4 — Supreme Court judgment scraper')
-    print(f'  DB: {args.db}')
+    target = 'Turso (production)' if is_using_turso() else f'local SQLite: {args.db}'
+    print(f'  DB target: {target}')
     print(f'  dry_run: {args.dry_run}')
     print()
 
@@ -331,8 +335,9 @@ def main() -> int:
     if args.year:
         years = [args.year]
     else:
-        with db_conn(args.db) as conn:
-            latest = get_latest_judgment_year(conn)
+        conn = db_conn(args.db)
+        latest = get_latest_judgment_year(conn)
+        conn.close()
         start = args.start_year or (latest + 1)
         end = args.end_year or current_be
         if start > end:
