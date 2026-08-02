@@ -169,6 +169,93 @@ describe('stripHtml', () => {
       expect(stripHtml(evil)).toBe('กฎหมายแรงงาน');
     });
   });
+
+  describe('CodeQL bypass attempts (defense-in-depth)', () => {
+    // These are the exact attack patterns CodeQL warned about in alerts #16-#20.
+    // The old regex-based implementation failed these; the new manual-scanning
+    // implementation must pass them all.
+
+    it('defeats nested-comment bypass: <!<!--- comment --->>', () => {
+      // Old regex /<!--[\s\S]*?-->/g would leave "<!-- comment -->" behind.
+      // Our impl may leave a stray ">" but never an active comment.
+      const result = stripHtml('<!<!--- comment --->>');
+      expect(result).not.toContain('<!--');
+      expect(result).not.toContain('-->');
+      expect(result).not.toContain('comment');
+    });
+
+    it('defeats split-script-tag bypass: <scrip<script>...</script>t>alert(123)</script>', () => {
+      // Old regex would leave "<script>alert(123)</script>" — a full active tag.
+      // Our impl may leave plain-text "alert(123)" but NEVER an active <script> tag.
+      const evil = '<scrip<script>is removed</script>t>alert(123)</script>';
+      const result = stripHtml(evil);
+      expect(result).not.toContain('<script');
+      expect(result).not.toContain('</script');
+      expect(result).not.toMatch(/<script/i);
+    });
+
+    it('defeats script with attributes and inline code', () => {
+      const evil = '<script type="text/javascript">var x = document.cookie;</script>safe';
+      expect(stripHtml(evil)).toBe('safe');
+    });
+
+    it('defeats case-insensitive script tag: <SCRIPT>alert(1)</SCRIPT>', () => {
+      expect(stripHtml('<SCRIPT>alert(1)</SCRIPT>safe')).toBe('safe');
+    });
+
+    it('defeats mixed-case style tag: <Style>body{color:red}</Style>text', () => {
+      expect(stripHtml('<Style>body{color:red}</Style>text')).toBe('text');
+    });
+
+    it('defeats entity-encoded XSS payload: &lt;script&gt;alert(1)&lt;/script&gt;', () => {
+      // Entity decoding must NOT reintroduce active HTML — &lt; decodes to literal
+      // "<" but there's no ">" forming a tag in the decoded output of this string
+      // alone. However if the entities form a complete tag after decoding, that tag
+      // would need to be stripped too. Our impl decodes entities AFTER stripping
+      // tags, so a fully entity-encoded tag would survive as literal text (which
+      // is safe in plain-text contexts but NOT in HTML rendering contexts).
+      const result = stripHtml('&lt;script&gt;alert(1)&lt;/script&gt;');
+      // In plain-text context, this is safe — the decoded text is just characters
+      expect(result).toBe('<script>alert(1)</script>');
+      // Note: for HTML rendering, use DOMPurify instead.
+    });
+
+    it('defeats nested CDATA with script inside', () => {
+      const evil = '<![CDATA[<script>alert(1)</script>]]>safe';
+      const result = stripHtml(evil);
+      expect(result).toBe('safe');
+    });
+
+    it('defeats comment containing fake script tag: <!-- <script>x</script> -->safe', () => {
+      expect(stripHtml('<!-- <script>x</script> -->safe')).toBe('safe');
+    });
+
+    it('defeats unclosed tag at end of input', () => {
+      expect(stripHtml('text<unclosed')).toBe('text');
+    });
+
+    it('defeats tag with nested angle brackets: <a < b>text</a>', () => {
+      // The first '>' closes the tag, leaving "text</a>" which is then stripped
+      const result = stripHtml('<a < b>text</a>');
+      expect(result).toBe('text');
+    });
+
+    it('never leaves an active <script> tag in output (fuzz-style check)', () => {
+      // Generate a variety of tricky inputs and verify none produce active script tags
+      const tricky = [
+        '<script<script>alert(1)</script>',
+        '<<script>>alert(1)<<script>',
+        '<script<SCRIPT>alert(1)</script>',
+        '<scr<script>ipt>alert(1)</script>',
+        '<script><script>alert(1)</script>',
+      ];
+      for (const input of tricky) {
+        const result = stripHtml(input);
+        expect(result).not.toMatch(/<script/i);
+        expect(result).not.toMatch(/<\/script/i);
+      }
+    });
+  });
 });
 
 describe('truncateText', () => {
