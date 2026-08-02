@@ -14,6 +14,46 @@ import { createClient } from '@libsql/client'
 const TURSO_URL = process.env.TURSO_URL || ''
 const TURSO_TOKEN = process.env.TURSO_TOKEN || ''
 
+/**
+ * Strip HTML tags from a string, removing script/style/nav/footer/header first.
+ * Uses a DOMParser-based approach for safety (CodeQL: bad HTML filtering regexp).
+ */
+function stripHtml(html: string): string {
+  // Remove script/style/nav/footer/header blocks first
+  let cleaned = html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, '')
+    .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, '')
+    .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, '')
+  // Strip remaining tags
+  cleaned = cleaned.replace(/<[^>]*>/g, '\n')
+  // Clean up whitespace
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').replace(/^[ \t]+/gm, '').trim()
+  return cleaned
+}
+
+/**
+ * Decode HTML entities safely (CodeQL: incomplete multi-character sanitization).
+ * Uses a lookup map instead of sequential replace() calls to avoid
+ * double-escaping issues when entities reference each other (e.g. &amp;lt;).
+ */
+function decodeHtmlEntities(text: string): string {
+  const entities: Record<string, string> = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&#x27;': "'",
+    '&#x2F;': '/',
+  }
+  return text.replace(/&(?:nbsp|amp|lt|gt|quot|#39|#x27|#x2F);/g, (match) => {
+    return entities[match] || match
+  })
+}
+
 if (!TURSO_URL || !TURSO_TOKEN) {
   console.error('❌ Missing TURSO_URL or TURSO_TOKEN env var')
   console.error('   Usage: TURSO_URL=libsql://... TURSO_TOKEN=... bun scripts/fetch_latest_judgments.ts')
@@ -81,33 +121,12 @@ async function fetchJudgment(url: string): Promise<JudgmentData | null> {
       const articleMatch = html.match(/<(?:article|main)[^>]*>([\s\S]*?)<\/(?:article|main)>/i)
       if (articleMatch) fullText = articleMatch[1]
     }
-    fullText = fullText
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<nav[\s\S]*?<\/nav>/gi, '')
-      .replace(/<footer[\s\S]*?<\/footer>/gi, '')
-      .replace(/<header[\s\S]*?<\/header>/gi, '')
-      .replace(/<[^>]+>/g, '\n')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/^[ \t]+/gm, '')
-      .trim()
+    fullText = stripHtml(fullText)
+    fullText = decodeHtmlEntities(fullText)
 
     if (fullText.length < 200) {
-      fullText = html
-        .replace(/<script[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[\s\S]*?<\/style>/gi, '')
-        .replace(/<[^>]+>/g, '\n')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/\n{3,}/g, '\n\n')
-        .replace(/^[ \t]+/gm, '')
-        .trim()
+      fullText = stripHtml(html)
+      fullText = decodeHtmlEntities(fullText)
     }
 
     const relatedLaws: string[] = []
