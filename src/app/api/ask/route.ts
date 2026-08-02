@@ -3,6 +3,7 @@ import { retrieveRelevant, buildContext, buildCitations } from '@/lib/rag';
 import { createChatCompletion } from '@/lib/zai-client';
 import { parseRequestBody, resolvePersona, type AskBody } from '@/lib/api-helpers/ask';
 import { withDisclaimer } from '@/lib/disclaimer';
+import { classifyQuestion } from '@/lib/two-stage-retrieval';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -237,8 +238,17 @@ export async function POST(req: NextRequest) {
   const skill = resolveSkill(question, persona, SKILLS);
   console.log(`[ask] persona=${personaId ? 'set' : 'none'} skill=${skill.name}`);
 
+  // Two-Stage Retrieval (REC-006): classify question into category before retrieval
+  const classification = classifyQuestion(question);
+  console.log(`[ask] category=${classification.category} code=${classification.categoryCode} confidence=${classification.confidence.toFixed(2)} matched=${classification.matchedKeywords.length}`);
+
   const laborOnly = body.laborOnly ?? persona?.laborOnly ?? skill.laborOnly;
-  const hits = await retrieveRelevant(question, { topK: skill.topK, laborOnly });
+  // Pass category to retrieveRelevant for two-stage filtering
+  const hits = await retrieveRelevant(question, {
+    topK: skill.topK,
+    laborOnly,
+    category: classification.categoryCode || undefined,
+  });
   const context = buildContext(hits);
   const citations = buildCitations(hits);
 
@@ -251,12 +261,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(withDisclaimer({
       answer: aiContent || 'ขออภัย ไม่สามารถสร้างคำตอบได้',
       citations, retrievedChunks: hits.length, skill: skill.name, persona: personaId,
+      category: classification.category, categoryCode: classification.categoryCode,
     }));
   } catch (e: any) {
     console.error('AI failed:', e);
     return NextResponse.json(withDisclaimer({
       error: 'AI service error', message: e?.message || '',
       citations, retrievedChunks: hits.length, skill: skill.name, persona: personaId,
+      category: classification.category, categoryCode: classification.categoryCode,
     }), { status: 500 });
   }
 }

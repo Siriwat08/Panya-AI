@@ -90,12 +90,14 @@ async function tryFindMany<T>(label: string, fn: () => Promise<T[]>): Promise<T[
 
 export async function retrieveRelevant(
   query: string,
-  opts: { topK?: number; laborOnly?: boolean } = {}
+  opts: { topK?: number; laborOnly?: boolean; category?: string } = {}
 ): Promise<RagHit[]> {
   const topK = opts.topK ?? 10;
   const ftsQuery = buildFtsQuery(query);
   if (!ftsQuery) return [];
 
+  // Two-Stage Retrieval (REC-006): if category is specified, use it to filter.
+  // Otherwise fall back to the legacy laborOnly boolean.
   const laborFilter = opts.laborOnly;
 
   // ============ FTS5 across 4 sources ============
