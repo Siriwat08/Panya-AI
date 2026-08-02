@@ -218,10 +218,8 @@ export async function POST(req: NextRequest) {
     const preferred = SKILLS.find(s => s.name === preferredSkillName);
     if (preferred) skill = preferred;
   }
-  // Sanitize log input to prevent log injection (CodeQL alert #8)
-  const safeQuestion = question.slice(0, 60).replace(/[\n\r]/g, ' ');
-  const safePersonaId = (personaId || 'none').replace(/[\n\r]/g, ' ');
-  console.log(`[ask] persona=${safePersonaId} skill=${skill.name} (question="${safeQuestion}...")`);
+  // Log only safe metadata — no user input in log messages (CodeQL: log injection)
+  console.log(`[ask] persona=${personaId ? 'set' : 'none'} skill=${skill.name} question_len=${question.length}`);
 
   // 2. RAG: ดึงข้อมูลที่เกี่ยวข้อง (ใช้ topK และ laborOnly ของ skill — หรือ persona override)
   // Use nullish coalescing for cleaner fallback (SonarCloud S6606 + S3358)

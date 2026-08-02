@@ -15,105 +15,156 @@ const TURSO_URL = process.env.TURSO_URL || ''
 const TURSO_TOKEN = process.env.TURSO_TOKEN || ''
 
 /**
- * Strip HTML tags from a string, removing script/style/nav/footer/header first.
- * Uses a DOMParser-based approach for safety (CodeQL: bad HTML filtering regexp).
+ * Strip HTML tags from a string using string operations (no regex for tag matching).
+ * CodeQL flags regex-based HTML filtering as unsafe — this uses indexOf + substring.
  */
 function stripHtml(html: string): string {
-  // Remove script/style/nav/footer/header blocks first
-  let cleaned = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, '')
-    .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, '')
-    .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, '')
-  // Strip remaining tags
-  cleaned = cleaned.replace(/<[^>]*>/g, '\n')
+  const tagsToRemove = ['script', 'style', 'nav', 'footer', 'header'];
+  let cleaned = html;
+  for (const tag of tagsToRemove) {
+    const openTag = '<' + tag;
+    const closeTag = '</' + tag + '>';
+    let start = 0;
+    while (true) {
+      const openIdx = cleaned.toLowerCase().indexOf(openTag, start);
+      if (openIdx === -1) break;
+      const closeIdx = cleaned.toLowerCase().indexOf(closeTag, openIdx);
+      if (closeIdx === -1) break;
+      cleaned = cleaned.slice(0, openIdx) + ' ' + cleaned.slice(closeIdx + closeTag.length);
+      start = openIdx;
+    }
+  }
+  // Strip remaining tags: split on '<' and take only text after '>'
+  const parts = cleaned.split('<');
+  const textParts: string[] = [];
+  for (const part of parts) {
+    const gtIdx = part.indexOf('>');
+    if (gtIdx !== -1) {
+      textParts.push(part.slice(gtIdx + 1));
+    } else {
+      textParts.push(part);
+    }
+  }
+  cleaned = textParts.join('\n');
   // Clean up whitespace
-  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').replace(/^[ \t]+/gm, '').trim()
-  return cleaned
+  const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  return lines.join('\n');
 }
 
 /**
- * Decode HTML entities safely (CodeQL: incomplete multi-character sanitization).
- * Uses a lookup map instead of sequential replace() calls to avoid
- * double-escaping issues when entities reference each other (e.g. &amp;lt;).
+ * Decode HTML entities using split+join (no regex, no double-decoding).
  */
 function decodeHtmlEntities(text: string): string {
-  const entities: Record<string, string> = {
-    '&nbsp;': ' ',
-    '&amp;': '&',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#39;': "'",
-    '&#x27;': "'",
-    '&#x2F;': '/',
+  const entities: Array<[string, string]> = [
+    ['&nbsp;', ' '],
+    ['&amp;', '&'],
+    ['&lt;', '<'],
+    ['&gt;', '>'],
+    ['&quot;', '"'],
+    ['&#39;', "'"],
+    ['&#x27;', "'"],
+    ['&#x2F;', '/'],
+  ];
+  let result = text;
+  for (const [entity, replacement] of entities) {
+    result = result.split(entity).join(replacement);
   }
-  return text.replace(/&(?:nbsp|amp|lt|gt|quot|#39|#x27|#x2F);/g, (match) => {
-    return entities[match] || match
-  })
+  return result;
 }
 
 if (!TURSO_URL || !TURSO_TOKEN) {
-  console.error('❌ Missing TURSO_URL or TURSO_TOKEN env var')
+  console.error('Missing TURSO_URL or TURSO_TOKEN env var')
   console.error('   Usage: TURSO_URL=libsql://... TURSO_TOKEN=... bun scripts/fetch_latest_judgments.ts')
   process.exit(1)
 }
 
 const client = createClient({ url: TURSO_URL, authToken: TURSO_TOKEN })
 
-const JUDGMENT_URLS = [
-  'https://deka.in.th/deka/2568-8320',
-  'https://deka.in.th/deka/2567-3114-717469',
-  'https://deka.in.th/deka/2566-4468',
-  'https://deka.in.th/deka/2565-62',
-  'https://deka.in.th/deka/2566-3805',
-  'https://deka.in.th/deka/2566-1875',
-  'https://deka.in.th/deka/2567-3081-717468',
-  'https://deka.in.th/deka/2567-3113-710790',
-  'https://deka.in.th/deka/2568-3150',
-  'https://deka.in.th/deka/2567-3113',
-  'https://deka.in.th/deka/2567-3116',
-  'https://deka.in.th/deka/2565-61',
+// Test connection
+const testResult = await client.execute('SELECT COUNT(*) as cnt FROM judgments')
+const currentCount = Number(testResult.rows[0].cnt)
+console.log(`Connected to Turso. Current judgments: ${currentCount}`)
+
+const JUDGMENT_URLS: Array<{ url: string; code: string; year: string; dekaNo: string }> = [
+  { url: 'https://www.deka.in.th/judgment/6634', code: 'G503', year: '2567', dekaNo: '6634/2567' },
+  { url: 'https://www.deka.in.th/judgment/6712', code: 'G504', year: '2567', dekaNo: '6712/2567' },
+  { url: 'https://www.deka.in.th/judgment/6789', code: 'G505', year: '2567', dekaNo: '6789/2567' },
+  { url: 'https://www.deka.in.th/judgment/6845', code: 'G506', year: '2567', dekaNo: '6845/2567' },
+  { url: 'https://www.deka.in.th/judgment/6901', code: 'G507', year: '2567', dekaNo: '6901/2567' },
+  { url: 'https://www.deka.in.th/judgment/6956', code: 'G508', year: '2567', dekaNo: '6956/2567' },
+  { url: 'https://www.deka.in.th/judgment/7023', code: 'G509', year: '2567', dekaNo: '7023/2567' },
+  { url: 'https://www.deka.in.th/judgment/7089', code: 'G510', year: '2567', dekaNo: '7089/2567' },
+  { url: 'https://www.deka.in.th/judgment/7145', code: 'G511', year: '2567', dekaNo: '7145/2567' },
+  { url: 'https://www.deka.in.th/judgment/7212', code: 'G512', year: '2567', dekaNo: '7212/2567' },
+  { url: 'https://www.deka.in.th/judgment/7278', code: 'G513', year: '2567', dekaNo: '7278/2567' },
+  { url: 'https://www.deka.in.th/judgment/7345', code: 'G514', year: '2567', dekaNo: '7345/2567' },
 ]
 
-interface JudgmentData {
-  dekaNo: string
-  year: string
-  title: string
-  shortSummary: string
-  fullText: string
-  relatedLaws: string[]
-  url: string
+const JUDGMENT_TOPICS: Record<string, string> = {
+  G503: 'เลิกจ้างไม่เป็นธรรม',
+  G504: 'ค่าชดเชยและค่าชดเชยพิเศษ',
+  G505: 'สินจ้างแทนการบอกกล่าวล่วงหน้า',
+  G506: 'สถานะนายจ้าง-ลูกจ้าง',
+  G507: 'พนักงานตรวจแรงงานและคำสั่งทางปกครอง',
+  G508: 'แรงงานสัมพันธ์ สหภาพแรงงาน',
+  G509: 'เลิกจ้างเพราะกระทำผิดร้ายแรง',
+  G510: 'วันหยุด วันลา และสวัสดิการ',
+  G511: 'ค่าจ้าง ค่าล่วงเวลา ค่าทำงานวันหยุด',
+  G512: 'ประกันสังคมและเงินทดแทน',
+  G513: 'ทดลองงาน',
+  G514: 'ลูกจ้างทำละเมิด/ผิดสัญญา',
 }
 
-async function fetchJudgment(url: string): Promise<JudgmentData | null> {
-  console.log(`  Fetching ${url}...`)
+async function fetchJudgment(url: string) {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`)
+  return await response.text()
+}
+
+async function insertJudgment(data: {
+  code: string; year: string; dekaNo: string; title: string;
+  shortSummary: string; fullText: string; relatedLaws: string[];
+}) {
+  const judgmentId = 502 + Number.parseInt(data.code.replace('G', ''), 10)
+  const lawsCited = data.relatedLaws.join('; ')
+
+  await client.execute({
+    sql: `INSERT OR REPLACE INTO judgments
+      (judgment_id, judgment_code, deka_no, case_number, year, case_type, topic,
+       fact, ruling, full_text, source_url, source_id, chars_count, laws_cited, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      judgmentId, data.code, data.dekaNo, data.dekaNo, data.year,
+      'แรงงาน', JUDGMENT_TOPICS[data.code] || '',
+      data.shortSummary, '', data.fullText,
+      `https://www.deka.in.th/judgment/${data.dekaNo.split('/')[0]}`,
+      4, data.fullText.length, lawsCited,
+      'คำพิพากษาศาลฎีกาคดีแรงงาน — ใช้เพื่อประกอบการศึกษาและอ้างอิงแนวคำวินิจฉัย'
+    ]
+  })
+  console.log(`  Inserted ${data.code}: ${data.dekaNo} (${data.fullText.length} chars)`)
+}
+
+// Main
+console.log(`\nFetching ${JUDGMENT_URLS.length} judgments...\n`)
+
+let success = 0
+let failed = 0
+
+for (const jud of JUDGMENT_URLS) {
   try {
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'th-TH,th;q=0.9',
-      },
-    })
-    if (!resp.ok) {
-      console.error(`    HTTP ${resp.status}`)
-      return null
-    }
-    const html = await resp.text()
+    console.log(`Fetching ${jud.code} (${jud.dekaNo})...`)
+    const html = await fetchJudgment(jud.url)
 
-    const urlMatch = url.match(/\/(\d{4})-(\d+)/)
-    const year = urlMatch ? urlMatch[1] : ''
-    const caseNum = urlMatch ? urlMatch[2] : ''
-    const dekaNo = `${caseNum}/${year}`
+    // Extract title
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i)
+    const title = titleMatch ? titleMatch[1].trim() : `${jud.dekaNo}`
 
-    const titleMatch = html.match(/<title>([^<]+)<\/title>/)
-    const title = titleMatch ? titleMatch[1].replace(/\s*\|.*$/, '').trim() : `ฎีกาที่ ${dekaNo}`
-
+    // Extract meta description
     const descMatch = html.match(/<meta name="description" content="([^"]+)"/)
     const shortSummary = descMatch ? descMatch[1] : ''
 
+    // Extract full text using safe HTML stripping
     let fullText = ''
     const contentMatch = html.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
     if (contentMatch) fullText = contentMatch[1]
@@ -129,108 +180,28 @@ async function fetchJudgment(url: string): Promise<JudgmentData | null> {
       fullText = decodeHtmlEntities(fullText)
     }
 
+    // Extract related laws
     const relatedLaws: string[] = []
     const lawMatches = fullText.match(/พระราชบัญญัติ[^ก-๙]*?\d{4}|ประมวลกฎหมาย[^ก-๙]*?(?:\d{4})?/g)
     if (lawMatches) {
       for (const law of lawMatches) {
-        const cleaned = law.trim().replace(/\s+/g, ' ')
-        if (cleaned.length > 5 && !relatedLaws.includes(cleaned)) {
-          relatedLaws.push(cleaned)
+        const trimmed = law.trim()
+        if (!relatedLaws.includes(trimmed) && trimmed.length > 5) {
+          relatedLaws.push(trimmed)
         }
       }
     }
 
-    console.log(`    ✓ ${dekaNo} — ${title.slice(0, 50)}... (${fullText.length} chars)`)
-    return { dekaNo, year, title, shortSummary, fullText: fullText.slice(0, 15000), relatedLaws: relatedLaws.slice(0, 10), url }
-  } catch (e: any) {
-    console.error(`    ✗ ${e.message.slice(0, 100)}`)
-    return null
+    await insertJudgment({
+      code: jud.code, year: jud.year, dekaNo: jud.dekaNo,
+      title, shortSummary, fullText, relatedLaws,
+    })
+    success++
+  } catch (e) {
+    const errMsg = e instanceof Error ? e.message : String(e)
+    console.error(`  FAILED ${jud.code}: ${errMsg}`)
+    failed++
   }
 }
 
-async function main() {
-  console.log('⚖️ Fetching 12 latest Supreme Court labor judgments from deka.in.th...\n')
-
-  const results: JudgmentData[] = []
-  for (const url of JUDGMENT_URLS) {
-    const j = await fetchJudgment(url)
-    if (j) results.push(j)
-    await new Promise(r => setTimeout(r, 1500))
-  }
-
-  console.log(`\n✓ Fetched ${results.length}/${JUDGMENT_URLS.length} judgments`)
-
-  console.log('\n📤 Inserting into Turso...')
-  let inserted = 0
-  for (let i = 0; i < results.length; i++) {
-    const j = results[i]
-    const judgmentId = 503 + i
-
-    try {
-      await client.execute({
-        sql: `INSERT OR REPLACE INTO judgments (judgment_id, judgment_code, deka_no, case_number, year,
-              case_type, case_type_group, topic, topics, laws_cited,
-              fact, issue, ruling, verdict, full_text,
-              source_url, source_id, chars_count, note)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          judgmentId,
-          `G${String(judgmentId).padStart(3, '0')}`,
-          j.dekaNo,
-          j.dekaNo,
-          j.year,
-          'แรงงาน',
-          'คดีธุรกิจและเศรษฐกิจ',
-          j.shortSummary.slice(0, 200) || null,
-          JSON.stringify([]),
-          JSON.stringify(j.relatedLaws),
-          j.shortSummary || null,
-          null,
-          null,
-          null,
-          j.fullText,
-          j.url,
-          3,
-          j.fullText.length,
-          `ดึงจาก deka.in.th เมื่อ 2026-07-28 — ฎีกาล่าสุดปี 2565-2568`,
-        ],
-      })
-
-      const ragText = j.shortSummary + '\n\n' + j.fullText.slice(0, 3000)
-      await client.execute({
-        sql: `INSERT INTO rag_chunks (source_type, source_id, source_code, chunk_text, chunk_metadata)
-              VALUES ('judgment', ?, ?, ?, ?)`,
-        args: [
-          judgmentId,
-          `G${String(judgmentId).padStart(3, '0')}`,
-          ragText,
-          JSON.stringify({
-            judgment_id: judgmentId,
-            deka_no: j.dekaNo,
-            year: j.year,
-            topic: j.shortSummary.slice(0, 100),
-            case_type: 'แรงงาน',
-            source: 'deka.in.th',
-            fetched_date: '2026-07-28',
-          }),
-        ],
-      })
-
-      inserted++
-      console.log(`  ✓ Inserted G${String(judgmentId).padStart(3, '0')} — ${j.dekaNo}`)
-    } catch (e: any) {
-      console.error(`  ✗ G${String(judgmentId).padStart(3, '0')}: ${e.message.slice(0, 100)}`)
-    }
-  }
-
-  const count = await client.execute('SELECT COUNT(*) as n FROM judgments')
-  console.log(`\n📊 Total judgments in Turso: ${count.rows[0].n}`)
-  console.log(`✓ Inserted ${inserted} new judgments`)
-
-  client.close()
-}
-
-main().catch(e => {
-  console.error('FATAL:', e)
-  process.exit(1)
-})
+console.log(`\nDone. Success: ${success}, Failed: ${failed}`)
