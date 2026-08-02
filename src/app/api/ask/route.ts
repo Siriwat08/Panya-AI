@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { retrieveRelevant, buildContext, buildCitations } from '@/lib/rag';
 import { createChatCompletion } from '@/lib/zai-client';
 import { parseRequestBody, resolvePersona, type AskBody } from '@/lib/api-helpers/ask';
+import { withDisclaimer } from '@/lib/disclaimer';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -246,15 +247,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const { content: aiContent } = await createChatCompletion(messages);
-    return NextResponse.json({
+    // REC-005: Wrap response with mandatory legal disclaimer
+    return NextResponse.json(withDisclaimer({
       answer: aiContent || 'ขออภัย ไม่สามารถสร้างคำตอบได้',
       citations, retrievedChunks: hits.length, skill: skill.name, persona: personaId,
-    });
+    }));
   } catch (e: any) {
     console.error('AI failed:', e);
-    return NextResponse.json({
+    return NextResponse.json(withDisclaimer({
       error: 'AI service error', message: e?.message || '',
       citations, retrievedChunks: hits.length, skill: skill.name, persona: personaId,
-    }, { status: 500 });
+    }), { status: 500 });
   }
 }
