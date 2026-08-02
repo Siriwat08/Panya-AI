@@ -3,120 +3,108 @@ import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/templates/pdf?id=123&employee=นาย+สมชาย+ใจดี
-// Returns HTML page that user can print to PDF (with employee name filled in)
-export async function GET(req: NextRequest) {
+/** Parse and validate request params. Returns null if invalid (with response). */
+function parseRequest(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
-  const employeeName = searchParams.get('employee') || '';
-  const position = searchParams.get('position') || '';
-  const startDate = searchParams.get('startDate') || '';
-  const salary = searchParams.get('salary') || '';
-
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  if (!id) return { error: NextResponse.json({ error: 'id required' }, { status: 400 }) };
   const templateId = Number.parseInt(id, 10);
-  if (Number.isNaN(templateId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  if (Number.isNaN(templateId)) return { error: NextResponse.json({ error: 'Invalid id' }, { status: 400 }) };
+  return {
+    templateId,
+    employeeName: searchParams.get('employee') || '',
+    position: searchParams.get('position') || '',
+    startDate: searchParams.get('startDate') || '',
+    salary: searchParams.get('salary') || '',
+  };
+}
 
-  const template = await db.contractTemplate.findUnique({ where: { templateId } });
-  if (!template) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  // Simple markdown-to-HTML conversion
-  let html = (template.fullText || '')
+/** Convert markdown to HTML (headers, bold, italic, lists, lines, paragraphs). */
+function markdownToHtml(text: string): string {
+  let html = text
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
 
-  // Headers
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-  // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-  // Italic
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-  // Lists
   html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
   html = html.replace(/(<li>[\s\S]+?<\/li>)/g, '<ul>$1</ul>');
-
-  // Lines
   html = html.replace(/^---$/gm, '<hr/>');
-
-  // Paragraphs
   html = html.replaceAll('\n\n', '</p><p>');
-  html = '<p>' + html + '</p>';
+  return '<p>' + html + '</p>';
+}
 
-  // Replace placeholders (Thai + English conventions)
-  // Note: actual replacement is done below via the auto-fill loop — kept for reference.
+/** Fill employee name in first 5 blank fields. */
+function fillEmployeeName(html: string, name: string): string {
+  if (!name) return html;
+  let count = 0;
+  return html.replace(/_{3,}/g, (match) => {
+    if (count < 5 && match.includes('___')) {
+      count++;
+      return `<u>&nbsp;${name}&nbsp;</u>`;
+    }
+    return match;
+  });
+}
 
-  // Auto-fill employee name in first 5 blank fields if employeeName provided
-  if (employeeName) {
-    let count = 0;
-    html = html.replace(/_{3,}/g, (match) => {
-      if (count < 5 && (match.includes('___'))) {
-        count++;
-        return `<u>&nbsp;${employeeName}&nbsp;</u>`;
-      }
-      return match;
-    });
-  }
+/** Fill position in first 2 position fields. */
+function fillPosition(html: string, position: string): string {
+  if (!position) return html;
+  let posCount = 0;
+  return html.replace(/ตำแหน่ง\s*[:.]\s*_{2,}/g, () => {
+    if (posCount < 2) {
+      posCount++;
+      return `ตำแหน่ง: <u>&nbsp;${position}&nbsp;</u>`;
+    }
+    return 'ตำแหน่ง: ___________';
+  });
+}
 
-  if (position) {
-    let posCount = 0;
-    html = html.replace(/ตำแหน่ง\s*[:.]\s*_{2,}/g, () => {
-      if (posCount < 2) {
-        posCount++;
-        return `ตำแหน่ง: <u>&nbsp;${position}&nbsp;</u>`;
-      }
-      return 'ตำแหน่ง: ___________';
-    });
-  }
+/** Fill start date in date field. */
+function fillStartDate(html: string, startDate: string): string {
+  if (!startDate) return html;
+  return html.replace(
+    /วันที่\s*_{2,}\s*เดือน\s*_{2,}\s*พ\.ศ\.\s*_{2,}/g,
+    `วันที่ <u>&nbsp;${startDate}&nbsp;</u>`
+  );
+}
 
-  if (startDate) {
-    html = html.replace(/วันที่\s*_{2,}\s*เดือน\s*_{2,}\s*พ\.ศ\.\s*_{2,}/g,
-      `วันที่ <u>&nbsp;${startDate}&nbsp;</u>`);
-  }
-
-  if (salary) {
-    // Replace salary amounts using split+join instead of regex (avoids S8786)
-    const marker = ' บาท';
-    const parts = html.split(marker);
-    let salCount = 0;
-    for (let idx = 1; idx < parts.length; idx++) {
-      // Check if the text before ' บาท' ends with a number < 1000
-      const before = parts[idx - 1];
-      const numEnd = before.search(/\d+$/);
-      if (numEnd !== -1) {
-        const numStr = before.slice(numEnd);
-        const numVal = Number.parseInt(numStr, 10);
-        if (salCount < 2 && numVal < 1000) {
-          salCount++;
-          // Replace the number at the end of the previous part with underlined salary
-          parts[idx - 1] = before.slice(0, numEnd) + `<u>&nbsp;${salary}&nbsp;</u>`;
-        }
+/** Fill salary amounts (first 2 amounts < 1000) using split+join (no regex backtracking). */
+function fillSalary(html: string, salary: string): string {
+  if (!salary) return html;
+  const marker = ' บาท';
+  const parts = html.split(marker);
+  let salCount = 0;
+  // Use a compiled regex with bounded digits to avoid S8786 backtracking
+  const trailingDigits = /\d{1,6}$/;
+  for (let idx = 1; idx < parts.length; idx++) {
+    const before = parts[idx - 1];
+    const match = trailingDigits.exec(before);
+    if (match) {
+      const numVal = Number.parseInt(match[0], 10);
+      if (salCount < 2 && numVal < 1000) {
+        salCount++;
+        parts[idx - 1] = before.slice(0, match.index) + `<u>&nbsp;${salary}&nbsp;</u>`;
       }
     }
-    html = parts.join(marker);
   }
+  return parts.join(marker);
+}
 
-  const fullHtml = `<!DOCTYPE html>
+/** Build the full HTML page with styles. */
+function buildFullHtml(html: string, template: { title: string; templateCode: string; charsCount: number }): string {
+  return `<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
 <title>${template.title} — Panya-AI</title>
 <style>
   @page { size: A4; margin: 2cm; }
-  body {
-    font-family: 'TH Sarabun New', 'Sukhumvit Set', 'Noto Sans Thai', sans-serif;
-    font-size: 16px;
-    line-height: 1.8;
-    color: #1a1a1a;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-  }
+  body { font-family: 'TH Sarabun New', 'Sukhumvit Set', 'Noto Sans Thai', sans-serif; font-size: 16px; line-height: 1.8; color: #1a1a1a; max-width: 800px; margin: 0 auto; padding: 20px; }
   h1 { font-size: 24px; text-align: center; margin: 20px 0; }
   h2 { font-size: 20px; margin-top: 30px; }
   h3 { font-size: 18px; margin-top: 25px; }
@@ -126,22 +114,10 @@ export async function GET(req: NextRequest) {
   hr { border: none; border-top: 1px dashed #ccc; margin: 20px 0; }
   strong { font-weight: bold; }
   u { text-decoration: underline; }
-  .print-btn {
-    position: fixed; top: 10px; right: 10px;
-    padding: 10px 20px; background: #E8541A; color: white;
-    border: none; border-radius: 6px; cursor: pointer;
-    font-size: 14px; z-index: 9999;
-  }
+  .print-btn { position: fixed; top: 10px; right: 10px; padding: 10px 20px; background: #E8541A; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; z-index: 9999; }
   .print-btn:hover { background: #c7421a; }
-  @media print {
-    .print-btn { display: none; }
-    body { padding: 0; }
-  }
-  .footer {
-    margin-top: 50px; padding-top: 20px;
-    border-top: 1px solid #eee;
-    font-size: 12px; color: #888; text-align: center;
-  }
+  @media print { .print-btn { display: none; } body { padding: 0; } }
+  .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #888; text-align: center; }
 </style>
 </head>
 <body>
@@ -152,17 +128,26 @@ ${html}
   Template: ${template.templateCode} | ขนาด: ${template.charsCount} ตัวอักษร<br/>
   ⚠️ ควรให้ทนายความตรวจทานก่อนใช้งานจริง
 </div>
-<script>
-  // Auto-print after 500ms (optional — comment out to disable)
-  // setTimeout(() => window.print(), 500);
-</script>
 </body>
 </html>`;
+}
 
+// GET /api/templates/pdf?id=123&employee=นาย+สมชาย+ใจดี
+export async function GET(req: NextRequest) {
+  const parsed = parseRequest(req);
+  if ('error' in parsed) return parsed.error;
+
+  const template = await db.contractTemplate.findUnique({ where: { templateId: parsed.templateId } });
+  if (!template) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  let html = markdownToHtml(template.fullText || '');
+  html = fillEmployeeName(html, parsed.employeeName);
+  html = fillPosition(html, parsed.position);
+  html = fillStartDate(html, parsed.startDate);
+  html = fillSalary(html, parsed.salary);
+
+  const fullHtml = buildFullHtml(html, template);
   return new NextResponse(fullHtml, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-store',
-    },
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
   });
 }
