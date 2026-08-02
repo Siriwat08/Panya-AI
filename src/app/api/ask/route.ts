@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
     if (preferred) skill = preferred;
   }
   // Log only safe metadata — no user input in log messages (CodeQL: log injection)
-  console.log(`[ask] persona=${personaId ? 'set' : 'none'} skill=${skill.name} question_len=${question.length}`);
+  console.log(`[ask] persona=${personaId ? 'set' : 'none'} skill=${skill.name}`);
 
   // 2. RAG: ดึงข้อมูลที่เกี่ยวข้อง (ใช้ topK และ laborOnly ของ skill — หรือ persona override)
   // Use nullish coalescing for cleaner fallback (SonarCloud S6606 + S3358)
