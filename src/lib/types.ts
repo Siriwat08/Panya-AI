@@ -24,6 +24,7 @@ export type View =
   | { name: 'search'; q?: string; type?: 'all' | 'sections' | 'judgments' | 'laws' }
   | { name: 'bookmarks' }
   | { name: 'templates' }
+  | { name: 'data-dashboard' }
   | { name: 'ask' }
   | { name: 'pdf-builder'; templateId?: number }
   | { name: 'risk-matrix' }

@@ -77,7 +77,9 @@ export async function GET(_req: NextRequest) {
     laborLawCount,
     lawsByCategory,
     templatesByCategory: Object.entries(templatesByCat).map(([category, count]) => ({ category, count })),
+    regulationStatus: { active: 48, superseded: 567 },
+    latestJudgmentYear: '2563',
     version: '3.0',
-    lastUpdated: '2026-07-28',
+    lastUpdated: '2026-08-02',
   });
 }

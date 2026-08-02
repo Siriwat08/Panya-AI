@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, FileText, Menu, X, ChevronLeft, Grid3x3, FileSearch, Wand2 } from 'lucide-react';
+import { Scale, Search, Bookmark, MessageSquare, Home, BookOpen, FileText, Menu, X, ChevronLeft, Grid3x3, FileSearch, Wand2, Database } from 'lucide-react';
 import { useNavigation } from '@/lib/navigation';
 import { PersonaSwitcher } from '@/components/onboarding/PersonaSwitcher';
 import { RecentlyViewed } from '@/components/common/RecentlyViewed';
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { view: { name: 'judgments' } as const, label: 'คำพิพากษา', icon: Scale },
   { view: { name: 'search' } as const, label: 'ค้นหา', icon: Search },
   { view: { name: 'templates' } as const, label: 'เทมเพลต', icon: FileText, badge: '63' },
+  { view: { name: 'data-dashboard' } as const, label: 'สถานะข้อมูล', icon: Database },
   { view: { name: 'bookmarks' } as const, label: 'บันทึก', icon: Bookmark },
 ];
 

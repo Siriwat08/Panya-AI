@@ -12,6 +12,7 @@ import { SearchView } from '@/components/search/SearchView';
 import { AskView } from '@/components/chat/AskView';
 import { BookmarksView } from '@/components/common/BookmarksView';
 import { TemplatesView } from '@/components/templates/TemplatesView';
+import { DataDashboardView } from '@/components/admin/DataDashboardView';
 import { PdfBuilderView } from '@/components/pdf/PdfBuilderView';
 import { RiskMatrixView } from '@/components/risk/RiskMatrixView';
 import { ContractAnalysisView } from '@/components/contract/ContractAnalysisView';
@@ -36,6 +37,7 @@ function parseView(): View {
     case 'search': return { name: 'search', q: q || undefined, type: type || 'all' };
     case 'bookmarks': return { name: 'bookmarks' };
     case 'templates': return { name: 'templates' };
+    case 'data-dashboard': return { name: 'data-dashboard' };
     case 'ask': return { name: 'ask' };
     case 'pdf-builder': return { name: 'pdf-builder', templateId: id ? Number.parseInt(id, 10) : undefined };
     case 'risk-matrix': return { name: 'risk-matrix' };
@@ -90,6 +92,7 @@ export function AppShell() {
         {view.name === 'contract-analysis' && <ContractAnalysisView />}
         {view.name === 'bookmarks' && <BookmarksView />}
         {view.name === 'templates' && <TemplatesView />}
+        {view.name === 'data-dashboard' && <DataDashboardView />}
       </main>
 
       {/* Persona onboarding modal — shown on first visit */}

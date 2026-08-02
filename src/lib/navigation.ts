@@ -24,6 +24,7 @@ export function useNavigation() {
       case 'search': return { name: 'search', q: q || undefined, type: type || 'all' };
       case 'bookmarks': return { name: 'bookmarks' };
       case 'templates': return { name: 'templates' };
+      case 'data-dashboard': return { name: 'data-dashboard' };
       case 'ask': return { name: 'ask' };
       case 'pdf-builder': return { name: 'pdf-builder', templateId: id ? Number.parseInt(id, 10) : undefined };
       case 'risk-matrix': return { name: 'risk-matrix' };
@@ -48,6 +49,7 @@ export function useNavigation() {
         break;
       case 'bookmarks': params.set('view', 'bookmarks'); break;
       case 'templates': params.set('view', 'templates'); break;
+      case 'data-dashboard': params.set('view', 'data-dashboard'); break;
       case 'ask': params.set('view', 'ask'); break;
       case 'pdf-builder':
         params.set('view', 'pdf-builder');
