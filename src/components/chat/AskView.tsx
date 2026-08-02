@@ -128,7 +128,7 @@ export function AskView() {
   const [thinkingIdx, setThinkingIdx] = useState(0);
   const thinkingImgs = ['/mascot/mascot-front.png', '/mascot/mascot-left.png', '/mascot/mascot-right.png'];
   // 3. Direction-aware: front by default, right when citation panel open, back on easter egg
-  const mascotSrc = getMascotSrc({ showEasterEgg, loading, openCitation, thinkingIdx, thinkingImgs });
+  const mascotSrc = getMascotSrc({ showEasterEgg, loading, openCitation: !!openCitation, thinkingIdx, thinkingImgs });
 
   const handleMascotClick = () => {
     const n = mascotClicks + 1;
@@ -645,7 +645,7 @@ function RightPanel({
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Agent Workflow</div>
           <div className="space-y-2">
             {AGENT_STEPS.map((s, i) => {
-              const done = lastAiMsg || (loading && i < activeStepIdx);
+              const done = !!(lastAiMsg || (loading && i < activeStepIdx));
               const active = loading && i === activeStepIdx;
               const pending = !lastAiMsg && !loading;
               return (

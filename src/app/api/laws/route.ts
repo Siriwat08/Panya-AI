@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { buildSectionFilter, mapLawToList } from '@/lib/api-helpers/laws';
 
 export const dynamic = 'force-dynamic';
-
-/** Build Prisma where clause for section keyword filter. */
-function buildSectionFilter(q: string | undefined) {
-  if (!q) return undefined;
-  return {
-    OR: [
-      { sectionText: { contains: q } },
-      { sectionNumber: { contains: q } },
-      { sectionNumberThai: { contains: q } },
-    ],
-  };
-}
 
 /** Fetch related judgments for a law via cross_references table. */
 async function fetchRelatedJudgments(lawId: number) {
@@ -83,24 +72,6 @@ async function handleDetail(id: string, q: string | undefined): Promise<NextResp
     isLaborLaw: law.category === 'labor' ? 1 : 0,
     relatedJudgments,
   });
-}
-
-/** Map law DB row to list response object. */
-function mapLawToList(l: any) {
-  return {
-    lawId: l.lawId,
-    lawCode: l.lawCode,
-    title: l.title,
-    lawNameTh: l.title,
-    lawNameEn: null,
-    year: l.year,
-    category: l.category,
-    isLaborLaw: l.category === 'labor' ? 1 : 0,
-    status: l.status,
-    sourceUrl: l.sourceUrl,
-    sectionCount: l._count.sections,
-    laborSectionCount: l.sections.length,
-  };
 }
 
 // GET /api/laws             — list all laws (with section count)

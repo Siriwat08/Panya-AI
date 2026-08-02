@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { retrieveRelevant, buildContext, buildCitations } from '@/lib/rag';
 import { createChatCompletion } from '@/lib/zai-client';
-import { PERSONAS, type PersonaId } from '@/lib/persona';
+import { PERSONAS, type PersonaId, type Persona } from '@/lib/persona';
+import { parseRequestBody, resolvePersona, type AskBody } from '@/lib/api-helpers/ask';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -185,59 +186,12 @@ F14=NDA F15=Non-compete F20=ลดค่าจ้าง F22=พักงาน
 // SKILL ROUTER — เลือก skill จากคำถาม
 // ============================================================
 
-function selectSkill(question: string): SubSkill {
-  const q = question.toLowerCase();
-  // Default skill is the last one (legal-qa) — use .at(-1) per SonarCloud S7755
-  let bestSkill = SKILLS.at(-1) as SubSkill;
-  let bestScore = 0;
-
-  for (const skill of SKILLS) {
-    if (skill.keywords.length === 0) continue; // skip default
-    let score = 0;
-    for (const kw of skill.keywords) {
-      if (q.includes(kw.toLowerCase())) {
-        score += kw.length > 3 ? 2 : 1; // longer keyword = higher weight
-      }
-    }
-    if (score > bestScore) {
-      bestScore = score;
-      bestSkill = skill;
-    }
-  }
-
-  // If no keyword matched, use default
-  if (bestScore === 0) {
-    bestSkill = SKILLS.at(-1) as SubSkill;
-  }
-
-  return bestSkill;
-}
-
-/** Parse and validate the request body. Returns null on error (with response already sent). */
-function parseRequestBody(body: AskBody): { question: string } | { error: string; status: number } {
-  const question = (body.question || '').trim();
-  if (!question) return { error: 'question required', status: 400 };
-  if (question.length > 2000) return { error: 'too long', status: 400 };
-  return { question };
-}
-
-/** Resolve persona from request body. Returns null if not set or invalid. */
-function resolvePersona(body: AskBody): { id: PersonaId; persona: Persona } | null {
-  const personaId = body.persona && body.persona in PERSONAS ? body.persona : null;
-  if (!personaId) return null;
-  return { id: personaId, persona: PERSONAS[personaId] };
-}
+// selectSkill is imported from @/lib/api-helpers/ask
+// parseRequestBody and resolvePersona are also imported from there
 
 // ============================================================
 // API ROUTE
 // ============================================================
-
-interface AskBody {
-  question: string;
-  history?: { role: 'user' | 'assistant'; content: string }[];
-  laborOnly?: boolean;
-  persona?: PersonaId | null;
-}
 
 export async function POST(req: NextRequest) {
   let body: AskBody;
@@ -256,7 +210,7 @@ export async function POST(req: NextRequest) {
   const persona = personaInfo?.persona ?? null;
 
   // 1. Route to appropriate sub-skill
-  let skill = selectSkill(question);
+  let skill = selectSkill(question, SKILLS);
   // Persona-based skill override: if persona has a strong preference, use it when scoring is close
   if (persona && skill.name === 'legal-qa') {
     // No keyword match → use persona's primary skill

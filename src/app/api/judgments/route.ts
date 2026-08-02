@@ -1,26 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { parseJsonArray, resolveCategoryFilter, mapJudgmentToList } from '@/lib/api-helpers/judgments';
 
 export const dynamic = 'force-dynamic';
-
-/** Parse a JSON array stored as TEXT in DB. Returns [] if invalid. */
-function parseJsonArray(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr.filter(Boolean) : [];
-  } catch {
-    return [];
-  }
-}
-
-/** Resolve category query param to Thai case_type. Returns undefined if no filter. */
-function resolveCategoryFilter(category: string | null): string | undefined {
-  if (!category) return undefined;
-  if (category === 'labor') return 'แรงงาน';
-  if (category === 'criminal') return 'อาญา';
-  return category;
-}
 
 /** Fetch related sections for a judgment via cross_references table. */
 async function fetchRelatedSections(judgmentId: number): Promise<any[]> {
@@ -101,31 +83,6 @@ async function handleDetail(id: string): Promise<NextResponse> {
     fullText: judgment.fullText,
     relatedSections,
   });
-}
-
-/** Map judgment DB row to list response object. */
-function mapJudgmentToList(j: any) {
-  return {
-    judgmentId: j.judgmentId,
-    caseNumber: j.dekaNo,
-    dekaNo: j.dekaNo,
-    caseYear: j.year,
-    year: j.year,
-    category: j.caseType,
-    caseType: j.caseType,
-    caseTypeGroup: j.caseTypeGroup,
-    title: j.topic,
-    topic: j.topic,
-    topicsList: parseJsonArray(j.topics),
-    lawsCitedList: parseJsonArray(j.lawsCited),
-    fact: j.fact,
-    decision: j.ruling,
-    ruling: j.ruling,
-    sourceUrl: j.sourceUrl,
-    sourceName: j.source?.sourceName ?? null,
-    licenseNote: j.note,
-    note: j.note,
-  };
 }
 
 // GET /api/judgments              — list (filter by case_type, page)

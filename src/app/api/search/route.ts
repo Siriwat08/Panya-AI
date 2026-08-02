@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
+import { buildFtsQuery, shouldSearch, mapSectionRow, aggregateLawHit } from '@/lib/api-helpers/search';
 
 export const dynamic = 'force-dynamic';
-
-/** Build FTS5 query string from user input. */
-function buildFtsQuery(q: string): string {
-  const safeQ = q.replace(/["']/g, ' ').trim();
-  const tokens = safeQ.split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return '';
-  return tokens.length === 1
-    ? `"${tokens[0]}"`
-    : tokens.map(t => `"${t}"`).join(' OR ');
-}
 
 /** Run a FTS query, returning [] on error (logged). */
 async function tryFts(label: string, sql: Prisma.Sql): Promise<any[]> {
@@ -64,36 +55,6 @@ async function searchSections(ftsQuery: string, q: string, limit: number, lawsMa
     aggregateLawHit(lawsMap, s);
   }
   return sections;
-}
-
-/** Map a DB section row to API response object. */
-function mapSectionRow(r: any) {
-  return {
-    type: 'section' as const,
-    id: r.section_id,
-    lawId: r.law_id,
-    lawNameTh: r.law_title,
-    lawTitle: r.law_title,
-    lawCode: r.law_code,
-    category: r.category,
-    isLaborLaw: r.category === 'labor',
-    articleKey: r.section_number_thai || `มาตรา ${r.section_number}`,
-    sectionNumber: r.section_number,
-    sectionNumberThai: r.section_number_thai,
-    snippet: r.section_text?.slice(0, 200) || '',
-    isLaborRelated: r.is_labor_related === 1,
-  };
-}
-
-/** Add a section hit to the laws aggregation map. */
-function aggregateLawHit(lawsMap: Map<number, any>, s: any) {
-  if (!lawsMap.has(s.lawId)) {
-    lawsMap.set(s.lawId, {
-      law: { lawId: s.lawId, lawNameTh: s.lawNameTh, lawTitle: s.lawTitle, category: s.category, isLaborLaw: s.isLaborLaw },
-      hitCount: 0,
-    });
-  }
-  lawsMap.get(s.lawId)!.hitCount += 1;
 }
 
 /** Search judgments via FTS5 + LIKE fallback. */
@@ -213,11 +174,6 @@ async function searchLawsByName(q: string, limit: number, lawsMap: Map<number, a
     }
   }
   return laws;
-}
-
-/** Check if a search type should be included. */
-function shouldSearch(type: string, target: string): boolean {
-  return type === 'all' || type === target;
 }
 
 // GET /api/search?q=ค่าจ้าง&type=all&limit=20

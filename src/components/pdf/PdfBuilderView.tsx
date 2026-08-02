@@ -156,7 +156,7 @@ export function PdfBuilderView({ initialTemplateId }: { readonly initialTemplate
               </div>
               <div className="flex justify-between">
                 <Button type="button" variant="ghost" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4" /> แก้ไข</Button>
-                <Button type="button" onClick={() => { setStep(4); setPdfUrl(`/api/templates/pdf?templateId=${selected.templateId}&employeeName=${encodeURIComponent(form.empName)}&position=${encodeURIComponent(form.empPosition)}`); }} className="bg-gold text-navy">ดาวน์โหลด PDF <Download className="h-4 w-4" /></Button>
+                <Button type="button" onClick={() => { setStep(4); setPdfUrl(`/api/templates/pdf?id=${selected.templateId}&employee=${encodeURIComponent(form.empName)}&position=${encodeURIComponent(form.empPosition)}&startDate=${encodeURIComponent(form.date)}`); }} className="bg-gold text-navy">ดาวน์โหลด PDF <Download className="h-4 w-4" /></Button>
               </div>
             </div>
           </div>

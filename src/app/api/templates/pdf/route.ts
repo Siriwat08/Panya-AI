@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { markdownToHtml, fillEmployeeName, fillPosition, fillStartDate, fillSalary } from '@/lib/api-helpers/pdf';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,82 +18,6 @@ function parseRequest(req: NextRequest) {
     startDate: searchParams.get('startDate') || '',
     salary: searchParams.get('salary') || '',
   };
-}
-
-/** Convert markdown to HTML (headers, bold, italic, lists, lines, paragraphs). */
-function markdownToHtml(text: string): string {
-  let html = text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
-
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>[\s\S]+?<\/li>)/g, '<ul>$1</ul>');
-  html = html.replace(/^---$/gm, '<hr/>');
-  html = html.replaceAll('\n\n', '</p><p>');
-  return '<p>' + html + '</p>';
-}
-
-/** Fill employee name in first 5 blank fields. */
-function fillEmployeeName(html: string, name: string): string {
-  if (!name) return html;
-  let count = 0;
-  return html.replace(/_{3,}/g, (match) => {
-    if (count < 5 && match.includes('___')) {
-      count++;
-      return `<u>&nbsp;${name}&nbsp;</u>`;
-    }
-    return match;
-  });
-}
-
-/** Fill position in first 2 position fields. */
-function fillPosition(html: string, position: string): string {
-  if (!position) return html;
-  let posCount = 0;
-  return html.replace(/ตำแหน่ง\s*[:.]\s*_{2,}/g, () => {
-    if (posCount < 2) {
-      posCount++;
-      return `ตำแหน่ง: <u>&nbsp;${position}&nbsp;</u>`;
-    }
-    return 'ตำแหน่ง: ___________';
-  });
-}
-
-/** Fill start date in date field. */
-function fillStartDate(html: string, startDate: string): string {
-  if (!startDate) return html;
-  return html.replace(
-    /วันที่\s*_{2,}\s*เดือน\s*_{2,}\s*พ\.ศ\.\s*_{2,}/g,
-    `วันที่ <u>&nbsp;${startDate}&nbsp;</u>`
-  );
-}
-
-/** Fill salary amounts (first 2 amounts < 1000) using split+join (no regex backtracking). */
-function fillSalary(html: string, salary: string): string {
-  if (!salary) return html;
-  const marker = ' บาท';
-  const parts = html.split(marker);
-  let salCount = 0;
-  // Use a compiled regex with bounded digits to avoid S8786 backtracking
-  const trailingDigits = /\d{1,6}$/;
-  for (let idx = 1; idx < parts.length; idx++) {
-    const before = parts[idx - 1];
-    const match = trailingDigits.exec(before);
-    if (match) {
-      const numVal = Number.parseInt(match[0], 10);
-      if (salCount < 2 && numVal < 1000) {
-        salCount++;
-        parts[idx - 1] = before.slice(0, match.index) + `<u>&nbsp;${salary}&nbsp;</u>`;
-      }
-    }
-  }
-  return parts.join(marker);
 }
 
 /** Build the full HTML page with styles. */
