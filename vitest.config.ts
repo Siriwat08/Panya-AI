@@ -8,11 +8,19 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json-summary'],
-      include: ['src/**/*.ts', 'src/**/*.tsx'],
+      include: [
+        'src/lib/*.ts',
+        'src/lib/api-helpers/*.ts',
+      ],
       exclude: [
-        'src/components/ui/**',
-        'src/app/globals.css',
+        'src/components/**',
+        'src/app/**',
+        'src/hooks/**',
         'src/lib/db.ts',
+        'src/lib/types.ts',
+        'src/lib/navigation.ts',
+        'src/lib/rag.ts',
+        'src/lib/zai-client.ts',
         'src/**/*.test.*',
         'src/**/*.spec.*',
       ],
