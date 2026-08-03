@@ -254,7 +254,7 @@ export function AskView() {
     }
   };
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     ask(input);
   };

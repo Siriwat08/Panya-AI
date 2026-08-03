@@ -55,34 +55,41 @@ const NAMED_ENTITIES: Record<string, string> = {
  * @param entity Must include leading `&` and trailing `;`
  */
 function decodeEntity(entity: string): string | null {
-  // Entity must be at least "&;" (3 chars) and at most "&xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;" (34 chars)
   if (entity.length < 3 || entity.length > 34) return null;
-  if (entity[0] !== '&' || entity[entity.length - 1] !== ';') return null;
+  if (!entity.startsWith('&') || !entity.endsWith(';')) return null;
 
   const body = entity.slice(1, -1);
 
-  // Numeric decimal: &#NNN;
-  if (body[0] === '#' && body.length > 1) {
-    const rest = body.slice(1);
-    // Hex: &#xNN; or &#XNN;
-    if (rest[0] === 'x' || rest[0] === 'X') {
-      const hex = rest.slice(1);
-      if (hex.length === 0 || hex.length > 8) return null;
-      if (!isAllHexChars(hex)) return null;
-      const code = parseInt(hex, 16);
-      return safeFromCodePoint(code);
-    }
-    // Decimal: &#NNN;
-    if (rest.length === 0 || rest.length > 10) return null;
-    if (!isAllDecimalChars(rest)) return null;
-    const code = parseInt(rest, 10);
-    return safeFromCodePoint(code);
+  if (body.startsWith('#') && body.length > 1) {
+    return decodeNumericEntity(body);
   }
 
-  // Named entity: &name;
   if (body.length === 0 || body.length > 32) return null;
   if (!isValidEntityName(body)) return null;
   return NAMED_ENTITIES[body] ?? null;
+}
+
+/** Decode a numeric entity body like `#65` or `#x41`. */
+function decodeNumericEntity(body: string): string | null {
+  const rest = body.slice(1);
+  if (rest.startsWith('x') || rest.startsWith('X')) {
+    return decodeHexEntity(rest.slice(1));
+  }
+  return decodeDecimalEntity(rest);
+}
+
+/** Decode a hex entity like `41` (from `&#x41;`). */
+function decodeHexEntity(hex: string): string | null {
+  if (hex.length === 0 || hex.length > 8) return null;
+  if (!isAllHexChars(hex)) return null;
+  return safeFromCodePoint(Number.parseInt(hex, 16));
+}
+
+/** Decode a decimal entity like `65` (from `&#65;`). */
+function decodeDecimalEntity(rest: string): string | null {
+  if (rest.length === 0 || rest.length > 10) return null;
+  if (!isAllDecimalChars(rest)) return null;
+  return safeFromCodePoint(Number.parseInt(rest, 10));
 }
 
 /**
@@ -91,7 +98,8 @@ function decodeEntity(entity: string): string | null {
  */
 function isAllHexChars(s: string): boolean {
   for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
+    const c = s.codePointAt(i);
+    if (c === undefined) return false;
     const isDigit = c >= 48 && c <= 57;   // '0'-'9'
     const isLower = c >= 97 && c <= 102;  // 'a'-'f'
     const isUpper = c >= 65 && c <= 70;   // 'A'-'F'
@@ -106,8 +114,8 @@ function isAllHexChars(s: string): boolean {
  */
 function isAllDecimalChars(s: string): boolean {
   for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    if (c < 48 || c > 57) return false;  // '0'-'9'
+    const c = s.codePointAt(i);
+    if (c === undefined || c < 48 || c > 57) return false;  // '0'-'9'
   }
   return true;
 }
@@ -117,12 +125,14 @@ function isAllDecimalChars(s: string): boolean {
  * Valid: starts with a letter, followed by 1+ letters/digits.
  */
 function isValidEntityName(s: string): boolean {
-  if (s.length < 2) return false;  // need at least 2 chars (first letter + something)
-  const first = s.charCodeAt(0);
+  if (s.length < 2) return false;
+  const first = s.codePointAt(0);
+  if (first === undefined) return false;
   const isLetter = (c: number) => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
   if (!isLetter(first)) return false;
   for (let i = 1; i < s.length; i++) {
-    const c = s.charCodeAt(i);
+    const c = s.codePointAt(i);
+    if (c === undefined) return false;
     if (!isLetter(c) && !(c >= 48 && c <= 57)) return false;
   }
   return true;
@@ -158,110 +168,93 @@ function safeFromCodePoint(code: number): string {
  */
 export function stripHtml(input: string): string {
   if (!input) return '';
-
   const len = input.length;
   let out = '';
   let i = 0;
 
   while (i < len) {
-    // ---- HTML comment: <!-- ... --> ----
-    if (startsWith(input, '<!--', i)) {
-      const end = input.indexOf('-->', i + 4);
-      i = end === -1 ? len : end + 3;
-      continue;
-    }
-
-    // ---- CDATA section: <![CDATA[ ... ]]> (unwrap — process inner content recursively) ----
-    if (startsWith(input, '<![CDATA[', i)) {
-      const end = input.indexOf(']]>', i + 9);
-      let inner: string;
-      if (end === -1) {
-        // No closing — take inner content to end of string
-        inner = input.slice(i + 9);
-        i = len;
-      } else {
-        inner = input.slice(i + 9, end);
-        i = end + 3;
-      }
-      // The inner content may contain HTML tags + entities that still need
-      // processing. Recursively strip it (the recursion is bounded because
-      // CDATA cannot nest — inner content is plain text/HTML).
-      out += stripHtml(inner);
-      continue;
-    }
-
-    // ---- <script>...</script> or <style>...</style> blocks (drop entirely) ----
-    if (input[i] === '<' && i + 1 < len) {
-      const nextChar = input[i + 1];
-      const isS = nextChar === 's' || nextChar === 'S';
-
-      if (isS && startsWithIgnoreCase(input, '<script', i)) {
-        // Skip past the opening tag (find '>')
-        const tagEnd = input.indexOf('>', i);
-        if (tagEnd === -1) { i = len; continue; }
-        // Find the closing </script>
-        const closeIdx = indexOfIgnoreCase(input, '</script', tagEnd + 1);
-        if (closeIdx === -1) {
-          i = len;
-        } else {
-          const afterClose = input.indexOf('>', closeIdx);
-          i = afterClose === -1 ? len : afterClose + 1;
-        }
-        continue;
-      }
-
-      if (isS && startsWithIgnoreCase(input, '<style', i)) {
-        const tagEnd = input.indexOf('>', i);
-        if (tagEnd === -1) { i = len; continue; }
-        const closeIdx = indexOfIgnoreCase(input, '</style', tagEnd + 1);
-        if (closeIdx === -1) {
-          i = len;
-        } else {
-          const afterClose = input.indexOf('>', closeIdx);
-          i = afterClose === -1 ? len : afterClose + 1;
-        }
-        continue;
-      }
-
-      // ---- Any other tag: <...> (drop the tag, keep nothing) ----
-      const tagEnd = input.indexOf('>', i);
-      if (tagEnd === -1) {
-        // Unclosed tag at end of input — drop the rest
-        i = len;
-      } else {
-        i = tagEnd + 1;
-      }
-      continue;
-    }
-
-    // ---- HTML entity: &...; (decode) ----
-    if (input[i] === '&') {
-      const semi = input.indexOf(';', i);
-      // Entity body must be 1-32 chars (between & and ;)
-      if (semi !== -1 && semi - i >= 2 && semi - i <= 33) {
-        const entity = input.slice(i, semi + 1);
-        const decoded = decodeEntity(entity);
-        if (decoded !== null) {
-          out += decoded;
-          i = semi + 1;
-          continue;
-        }
-      }
-      // Not a valid entity — output '&' as a literal character
-      out += '&';
-      i++;
-      continue;
-    }
-
-    // ---- Regular character ----
-    out += input[i];
-    i++;
+    const next = processChar(input, i, len);
+    out += next.output;
+    i = next.nextIndex;
   }
+  return collapseWhitespace(out);
+}
 
-  // Collapse whitespace runs (preserve NBSP — intentional non-breaking space).
-  // Manual character-by-character collapse — no regex, no chance of CodeQL flagging.
-  out = collapseWhitespace(out);
-  return out;
+/** Process the character at position `i` and return output + next index. */
+function processChar(input: string, i: number, len: number): { output: string; nextIndex: number } {
+  // HTML comment
+  if (startsWith(input, '<!--', i)) {
+    return { output: '', nextIndex: skipTo(input, i + 4, '-->') };
+  }
+  // CDATA
+  if (startsWith(input, '<![CDATA[', i)) {
+    return processCdata(input, i, len);
+  }
+  // Tags
+  if (input[i] === '<') {
+    return processTag(input, i, len);
+  }
+  // Entity
+  if (input[i] === '&') {
+    return processEntity(input, i);
+  }
+  // Regular char
+  return { output: input[i], nextIndex: i + 1 };
+}
+
+/** Skip to the end of a marker (e.g. '-->') and return the index after it. */
+function skipTo(input: string, from: number, marker: string): number {
+  const idx = input.indexOf(marker, from);
+  return idx === -1 ? input.length : idx + marker.length;
+}
+
+/** Process CDATA section — unwrap and recursively strip inner content. */
+function processCdata(input: string, i: number, len: number): { output: string; nextIndex: number } {
+  const end = input.indexOf(']]>', i + 9);
+  if (end === -1) {
+    return { output: stripHtml(input.slice(i + 9)), nextIndex: len };
+  }
+  return { output: stripHtml(input.slice(i + 9, end)), nextIndex: end + 3 };
+}
+
+/** Process any tag (<script>, <style>, or regular tag). */
+function processTag(input: string, i: number, len: number): { output: string; nextIndex: number } {
+  if (i + 1 >= len) return { output: '', nextIndex: len };
+  const nextChar = input[i + 1];
+  if (nextChar === 's' || nextChar === 'S') {
+    if (startsWithIgnoreCase(input, '<script', i)) {
+      return skipBlockTag(input, i, '</script');
+    }
+    if (startsWithIgnoreCase(input, '<style', i)) {
+      return skipBlockTag(input, i, '</style');
+    }
+  }
+  // Regular tag — skip to '>'
+  const tagEnd = input.indexOf('>', i);
+  return { output: '', nextIndex: tagEnd === -1 ? len : tagEnd + 1 };
+}
+
+/** Skip a block tag like <script>...</script> — returns position after closing tag. */
+function skipBlockTag(input: string, i: number, closeTag: string): { output: string; nextIndex: number } {
+  const tagEnd = input.indexOf('>', i);
+  if (tagEnd === -1) return { output: '', nextIndex: input.length };
+  const closeIdx = indexOfIgnoreCase(input, closeTag, tagEnd + 1);
+  if (closeIdx === -1) return { output: '', nextIndex: input.length };
+  const afterClose = input.indexOf('>', closeIdx);
+  return { output: '', nextIndex: afterClose === -1 ? input.length : afterClose + 1 };
+}
+
+/** Process HTML entity (&...;) — decode or output literal '&'. */
+function processEntity(input: string, i: number): { output: string; nextIndex: number } {
+  const semi = input.indexOf(';', i);
+  if (semi !== -1 && semi - i >= 2 && semi - i <= 33) {
+    const entity = input.slice(i, semi + 1);
+    const decoded = decodeEntity(entity);
+    if (decoded !== null) {
+      return { output: decoded, nextIndex: semi + 1 };
+    }
+  }
+  return { output: '&', nextIndex: i + 1 };
 }
 
 /**
