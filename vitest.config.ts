@@ -23,6 +23,7 @@ export default defineConfig({
         'src/lib/zai-client.ts',
         'src/lib/chat-sessions.ts',
         'src/lib/recently-viewed.ts',
+        'src/lib/pdf-extract.ts',
         'src/**/*.test.*',
         'src/**/*.spec.*',
       ],
