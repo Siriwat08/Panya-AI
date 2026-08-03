@@ -292,10 +292,22 @@ function classifyPage(
     }
   }
 
-  // Rule 3: Table of contents — many page number references
-  const pageRefPattern = /\.{2,}\s*\d+/g;
-  const pageRefs = (text.match(pageRefPattern) || []).length;
-  if (pageRefs >= 5) {
+  // Rule 3: Table of contents — many page number references (e.g., ".... 5")
+  // Manual scan instead of regex to avoid super-linear backtracking (S8786)
+  let pageRefCount = 0;
+  let dotStreak = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '.') {
+      dotStreak++;
+    } else if (dotStreak >= 2 && text[i] >= '0' && text[i] <= '9') {
+      pageRefCount++;
+      dotStreak = 0;
+      if (pageRefCount >= 5) break; // early exit — enough to classify as TOC
+    } else {
+      dotStreak = 0;
+    }
+  }
+  if (pageRefCount >= 5) {
     return { skippable: true, reason: 'สารบัญ (มีเลขหน้าอ้างอิงจำนวนมาก)' };
   }
 

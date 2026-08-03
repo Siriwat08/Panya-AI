@@ -61,11 +61,11 @@ export function chunkContractPages(pages: PdfPageText[]): ChunkingResult {
 
   // Step 2: Merge pages into a single text stream with page markers
   let fullText = '';
-  const pageBoundaries: Array<{ page: number; offset: number }> = [];
-  for (const page of analyzedPages) {
-    pageBoundaries.push({ page: page.pageNumber, offset: fullText.length });
+  const pageBoundaries: Array<{ page: number; offset: number }> = analyzedPages.map(page => {
+    const boundary = { page: page.pageNumber, offset: fullText.length };
     fullText += page.text + '\n\n';
-  }
+    return boundary;
+  });
 
   // Step 3: Split into chunks at paragraph boundaries
   const chunks: ContractChunk[] = [];
@@ -160,7 +160,7 @@ function getPageRange(startOffset: number, endOffset: number, boundaries: Array<
   if (boundaries.length === 0) return 'หน้า 1';
 
   let startPage = boundaries[0].page;
-  let endPage = boundaries[boundaries.length - 1].page;
+  let endPage = boundaries.at(-1)?.page ?? boundaries[0].page;
 
   for (const b of boundaries) {
     if (b.offset <= startOffset) {

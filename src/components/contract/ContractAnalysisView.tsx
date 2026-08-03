@@ -282,7 +282,7 @@ export function ContractAnalysisView() {
       {chunkResults.length > 0 && (
         <div className="space-y-4">
           {chunkResults.map((result, i) => (
-            <div key={`chunk-${i}`} className="card-premium rounded-xl p-6">
+            <div key={`chunk-${result.chunkIndex}-${result.pageRange}`} className="card-premium rounded-xl p-6">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xs font-bold px-2 py-1 rounded bg-gold/20 text-gold">
                   ส่วน {result.chunkIndex + 1}
