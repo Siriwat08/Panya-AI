@@ -278,48 +278,65 @@ function classifyPage(
   charCount: number,
   totalPages: number,
 ): { skippable: boolean; reason?: string } {
-  // Rule 1: Blank or near-blank pages
+  const blank = checkBlankPage(charCount);
+  if (blank) return blank;
+
+  const cover = checkCoverPage(pageNum, charCount, text);
+  if (cover) return cover;
+
+  const toc = checkTableOfContents(text);
+  if (toc) return toc;
+
+  const sig = checkSignaturePage(pageNum, totalPages, charCount, text);
+  if (sig) return sig;
+
+  return { skippable: false };
+}
+
+/** Rule 1: Blank or near-blank pages (< 50 chars). */
+function checkBlankPage(charCount: number): { skippable: boolean; reason?: string } | null {
   if (charCount < 50) {
     return { skippable: true, reason: 'หน้าว่างหรือข้อความน้อยเกินไป' };
   }
+  return null;
+}
 
-  // Rule 2: Cover page — first 2 pages, short text with company keywords
-  if (pageNum <= 2 && charCount < 500) {
-    const coverKeywords = ['สัญญา', 'บริษัท', 'ห้างหุ้นส่วน', 'จำกัด', 'ทำขึ้น', 'ระหว่าง'];
-    const hasKeyword = coverKeywords.some(kw => text.includes(kw));
-    if (hasKeyword) {
-      return { skippable: true, reason: 'หน้าปกสัญญา' };
-    }
+/** Rule 2: Cover page — first 2 pages, short text with company keywords. */
+function checkCoverPage(pageNum: number, charCount: number, text: string): { skippable: boolean; reason?: string } | null {
+  if (pageNum > 2 || charCount >= 500) return null;
+  const coverKeywords = ['สัญญา', 'บริษัท', 'ห้างหุ้นส่วน', 'จำกัด', 'ทำขึ้น', 'ระหว่าง'];
+  if (coverKeywords.some(kw => text.includes(kw))) {
+    return { skippable: true, reason: 'หน้าปกสัญญา' };
   }
+  return null;
+}
 
-  // Rule 3: Table of contents — many page number references (e.g., ".... 5")
-  // Manual scan instead of regex to avoid super-linear backtracking (S8786)
+/** Rule 3: Table of contents — many page number references (e.g., ".... 5"). */
+function checkTableOfContents(text: string): { skippable: boolean; reason?: string } | null {
   let pageRefCount = 0;
   let dotStreak = 0;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '.') {
+  for (const char of text) {
+    if (char === '.') {
       dotStreak++;
-    } else if (dotStreak >= 2 && text[i] >= '0' && text[i] <= '9') {
+    } else if (dotStreak >= 2 && char >= '0' && char <= '9') {
       pageRefCount++;
       dotStreak = 0;
-      if (pageRefCount >= 5) break; // early exit — enough to classify as TOC
+      if (pageRefCount >= 5) return { skippable: true, reason: 'สารบัญ (มีเลขหน้าอ้างอิงจำนวนมาก)' };
     } else {
       dotStreak = 0;
     }
   }
-  if (pageRefCount >= 5) {
-    return { skippable: true, reason: 'สารบัญ (มีเลขหน้าอ้างอิงจำนวนมาก)' };
-  }
+  return null;
+}
 
-  // Rule 4: Signature page — last page, very short, has signature keywords
-  if (pageNum >= totalPages - 1 && charCount < 200) {
-    const sigKeywords = ['ลงนาม', 'ผู้จ้าง', 'ลูกจ้าง', 'พยาน', 'วันที่'];
-    const hasSig = sigKeywords.some(kw => text.includes(kw));
-    if (hasSig && !text.includes('มาตรา')) {
-      return { skippable: true, reason: 'หน้าลงนาม (ไม่มีเนื้อหากฎหมาย)' };
-    }
+/** Rule 4: Signature page — last page, very short, has signature keywords. */
+function checkSignaturePage(pageNum: number, totalPages: number, charCount: number, text: string): { skippable: boolean; reason?: string } | null {
+  if (pageNum < totalPages - 1 || charCount >= 200) return null;
+  const sigKeywords = ['ลงนาม', 'ผู้จ้าง', 'ลูกจ้าง', 'พยาน', 'วันที่'];
+  const hasSig = sigKeywords.some(kw => text.includes(kw));
+  if (hasSig && !text.includes('มาตรา')) {
+    return { skippable: true, reason: 'หน้าลงนาม (ไม่มีเนื้อหากฎหมาย)' };
   }
-
-  return { skippable: false };
+  return null;
 }
 

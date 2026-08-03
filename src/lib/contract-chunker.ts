@@ -181,15 +181,14 @@ function getPageRange(startOffset: number, endOffset: number, boundaries: Array<
  * Format chunking result for UI display.
  */
 export function formatChunkingSummary(result: ChunkingResult): string {
-  const lines: string[] = [];
-  lines.push(`แบ่งเป็น ${result.totalChunks} ส่วน for AI analysis`);
-  lines.push(`ข้อความรวม: ${result.totalChars.toLocaleString()} ตัวอักษร`);
-  lines.push(`หน้าที่วิเคราะห์: ${result.analyzedPages} หน้า`);
+  const lines: string[] = [
+    `แบ่งเป็น ${result.totalChunks} ส่วน for AI analysis`,
+    `ข้อความรวม: ${result.totalChars.toLocaleString()} ตัวอักษร`,
+    `หน้าที่วิเคราะห์: ${result.analyzedPages} หน้า`,
+  ];
   if (result.skippedPages.length > 0) {
     lines.push(`ข้าม ${result.skippedPages.length} หน้าที่ไม่จำเป็น:`);
-    for (const sp of result.skippedPages) {
-      lines.push(`  • หน้า ${sp.pageNumber}: ${sp.reason}`);
-    }
+    lines.push(...result.skippedPages.map(sp => `  • หน้า ${sp.pageNumber}: ${sp.reason}`));
   }
   return lines.join('\n');
 }
