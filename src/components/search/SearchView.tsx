@@ -116,7 +116,7 @@ export function SearchView({ initialQ, initialType }: { readonly initialQ?: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQ, initialType]);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     runSearch(q, type);
   };
