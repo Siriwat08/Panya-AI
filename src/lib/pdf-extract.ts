@@ -17,7 +17,7 @@
 
 // Dynamic import — pdfjs-dist only works in browser (uses Web Workers)
 // We import it inside the function so Next.js doesn't try to bundle it server-side
-// Use 'any' type to avoid TS mismatch between our local type and pdfjs-dist's exported type
+// Use 'unknown' + cast to avoid TS mismatch between our local type and pdfjs-dist's exported type
 type AnyPdfDocument = {
   numPages: number;
   getPage: (pageNum: number) => Promise<{
@@ -27,8 +27,10 @@ type AnyPdfDocument = {
   }>;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let pdfjsPromise: Promise<any> | null = null;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function loadPdfJs(): Promise<any> {
   if (!pdfjsPromise) {
     pdfjsPromise = import('pdfjs-dist');
@@ -142,20 +144,22 @@ export async function extractTextFromPDF(
       fileName: file.name,
       fileSize: file.size,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     // Re-throw our custom errors
-    if (err.message && err.message.includes('ไฟล์')) {
-      throw err;
+    if (message.includes('ไฟล์')) {
+      throw err instanceof Error ? err : new Error(message);
     }
     // Handle pdfjs errors
-    if (err?.name === 'PasswordException') {
+    const errName = (err as { name?: string }).name;
+    if (errName === 'PasswordException') {
       throw new Error('PDF นี้มีรหัสผ่าน — กรุณาถอดรหัสก่อนอัปโหลด');
     }
-    if (err?.name === 'InvalidPDFException') {
+    if (errName === 'InvalidPDFException') {
       throw new Error('ไฟล์ PDF เสียหายหรือไม่ใช่ PDF ที่ถูกต้อง');
     }
     // Generic error
-    throw new Error(`ไม่สามารถอ่าน PDF ได้: ${err?.message || 'ข้อผิดพลาดที่ไม่ทราบสาเหตุ'}`);
+    throw new Error(`ไม่สามารถอ่าน PDF ได้: ${message}`);
   }
 }
 

@@ -53,8 +53,9 @@ export function ContractAnalysisView() {
         pageCount: result.pageCount,
       });
       setPdfProgress(null);
-    } catch (err: any) {
-      setError(err.message || 'ไม่สามารถอ่าน PDF ได้');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'ไม่สามารถอ่าน PDF ได้';
+      setError(message);
       setPdfInfo(null);
       setPdfProgress(null);
     } finally {
@@ -117,8 +118,9 @@ export function ContractAnalysisView() {
         summary: data.answer || 'ไม่สามารถวิเคราะห์ได้',
         citations: data.citations || [],
       });
-    } catch (e: any) {
-      setError(e.message || 'Unknown error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || 'Unknown error');
     } finally {
       setLoading(false);
     }
