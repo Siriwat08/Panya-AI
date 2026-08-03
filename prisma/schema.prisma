@@ -178,3 +178,62 @@ model IngestionLog {
 
   @@map("ingestion_log")
 }
+
+// =========================================================================
+// Phase 10.1 — New-law / new-regulation detection + ingestion queue
+// =========================================================================
+
+/// Notifications about new laws, amendments, repeals, regulations, and judgments
+/// detected by the RSS monitor (scripts/monitor_law_updates.py) or scraper
+/// (scripts/scrape_judgments.py). Workflow: unread → acknowledged → ingested
+/// (or dismissed). Reviewed by an admin/owner before being ingested into the
+/// main corpus.
+model LawUpdateNotification {
+  notificationId     Int     @id @default(autoincrement()) @map("notification_id")
+  detectedAt         String  @map("detected_at")
+  /// Source that detected the update: "ratchakitcha_rss" | "supremecourt_scrape" | "manual_report" | "krisdika_api"
+  source             String
+  /// Type of update: "new_law" | "amendment" | "repeal" | "new_regulation" | "new_judgment"
+  updateType         String  @map("update_type")
+  title              String
+  referenceNumber    String? @map("reference_number")
+  publicationDate    String? @map("publication_date")
+  sourceUrl          String? @map("source_url")
+  summary            String?
+  /// Current workflow status: "unread" | "acknowledged" | "ingested" | "dismissed"
+  status             String  @default("unread")
+  /// Severity for triage: "info" | "warning" | "critical"
+  severity           String  @default("info")
+  reviewedBy         String? @map("reviewed_by")
+  reviewedAt         String? @map("reviewed_at")
+  reviewNotes        String? @map("review_notes")
+
+  @@index([status])
+  @@index([updateType])
+  @@index([detectedAt])
+  @@map("law_update_notifications")
+}
+
+/// Queue of ingestion jobs for retry mechanism. When scrapers or RSS monitors
+/// fail (e.g. network down), they enqueue a job here so the next cron run can
+/// pick it up. Also used for one-off ingestion tasks (e.g. build_xrefs).
+model IngestionQueue {
+  queueId        Int     @id @default(autoincrement()) @map("queue_id")
+  /// Job type: "scrape_judgments" | "fetch_rss" | "ingest_regulation" | "ingest_law" | "build_xrefs"
+  jobType        String  @map("job_type")
+  /// JSON payload with job parameters
+  payload        String
+  /// Status: "queued" | "running" | "completed" | "failed" | "cancelled"
+  status         String  @default("queued")
+  scheduledFor   String? @map("scheduled_for")
+  startedAt      String? @map("started_at")
+  completedAt    String? @map("completed_at")
+  resultSummary  String? @map("result_summary")
+  errorMessage   String? @map("error_message")
+  createdAt      String  @map("created_at")
+  createdBy      String? @map("created_by")
+
+  @@index([status])
+  @@index([jobType])
+  @@map("ingestion_queue")
+}
