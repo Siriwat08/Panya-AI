@@ -32,6 +32,7 @@ let pdfjsPromise: Promise<any> | null = null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function loadPdfJs(): Promise<any> {
+  // @ts-ignore — pdfjs-dist is installed at runtime, TS may not find types in all configs
   pdfjsPromise ??= import('pdfjs-dist');
   const pdfjs = await pdfjsPromise;
   configurePdfWorker(pdfjs);
@@ -46,6 +47,22 @@ function configurePdfWorker(pdfjs: { version: string; GlobalWorkerOptions?: { wo
 
 export interface PDFExtractResult {
   text: string;
+  pageCount: number;
+  fileName: string;
+  fileSize: number;
+}
+
+export interface PdfPageText {
+  pageNumber: number;
+  text: string;
+  charCount: number;
+  isSkippable: boolean;
+  skipReason?: string;
+}
+
+export interface PDFPagesResult {
+  pages: PdfPageText[];
+  totalChars: number;
   pageCount: number;
   fileName: string;
   fileSize: number;
@@ -93,14 +110,10 @@ export async function extractTextFromPDF(
   }
 }
 
-/** Validate file type, size, and non-emptiness. */
+/** Validate file type and non-emptiness. No size limit — browser handles large files. */
 function validatePdfFile(file: File): void {
   if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
     throw new Error(`ไฟล์ต้องเป็น PDF เท่านั้น (ได้รับ: ${file.type || 'unknown'})`);
-  }
-  const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-  if (file.size > MAX_SIZE) {
-    throw new Error(`ไฟล์ใหญ่เกินไป (สูงสุด 10MB ได้รับ: ${(file.size / 1024 / 1024).toFixed(1)}MB)`);
   }
   if (file.size === 0) {
     throw new Error('ไฟล์ว่างเปล่า — อาจเสียหาย');
@@ -181,3 +194,120 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+// =========================================================================
+// Page-level extraction (for contract chunker)
+// =========================================================================
+
+/**
+ * Extract text from a PDF, page by page, with auto-filtering of skippable pages.
+ *
+ * Returns PdfPageText[] where each page has:
+ *   - pageNumber: 1-indexed
+ *   - text: extracted text
+ *   - charCount: length of text
+ *   - isSkippable: true if page looks like cover/TOC/blank
+ *   - skipReason: why it was skipped (for UI display)
+ *
+ * @param file PDF File object
+ * @param onProgress callback(currentPage, totalPages)
+ */
+export async function extractPdfPages(
+  file: File,
+  onProgress?: (currentPage: number, totalPages: number) => void,
+): Promise<PDFPagesResult> {
+  validatePdfFile(file);
+
+  try {
+    const pdfjs = await loadPdfJs();
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+    const pdf: AnyPdfDocument = await loadingTask.promise;
+
+    const pages: PdfPageText[] = [];
+    let totalChars = 0;
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      onProgress?.(i, pdf.numPages);
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = buildPageText(textContent.items).trim();
+      const charCount = pageText.length;
+      totalChars += charCount;
+
+      const skip = classifyPage(i, pageText, charCount, pdf.numPages);
+      pages.push({
+        pageNumber: i,
+        text: pageText,
+        charCount,
+        isSkippable: skip.skippable,
+        skipReason: skip.reason,
+      });
+    }
+
+    if (totalChars === 0) {
+      throw new Error('ไม่พบข้อความใน PDF — อาจเป็น PDF ที่เป็นภาพสแกน (scanned PDF)');
+    }
+
+    return {
+      pages,
+      totalChars,
+      pageCount: pdf.numPages,
+      fileName: file.name,
+      fileSize: file.size,
+    };
+  } catch (err: unknown) {
+    throw wrapPdfError(err);
+  }
+}
+
+/**
+ * Classify whether a page should be skipped during analysis.
+ *
+ * Skip rules:
+ *   1. Blank page: < 50 chars (likely scanned image or intentional blank)
+ *   2. Cover page: first 1-2 pages, short text, contains company keywords
+ *   3. Table of contents: contains many page numbers (e.g., "หน้า 1", ".... 5")
+ *   4. Appendix with no legal content: contains "ภาคผนวก" + minimal text
+ *
+ * Returns { skippable: boolean, reason?: string }
+ */
+function classifyPage(
+  pageNum: number,
+  text: string,
+  charCount: number,
+  totalPages: number,
+): { skippable: boolean; reason?: string } {
+  // Rule 1: Blank or near-blank pages
+  if (charCount < 50) {
+    return { skippable: true, reason: 'หน้าว่างหรือข้อความน้อยเกินไป' };
+  }
+
+  // Rule 2: Cover page — first 2 pages, short text with company keywords
+  if (pageNum <= 2 && charCount < 500) {
+    const coverKeywords = ['สัญญา', 'บริษัท', 'ห้างหุ้นส่วน', 'จำกัด', 'ทำขึ้น', 'ระหว่าง'];
+    const hasKeyword = coverKeywords.some(kw => text.includes(kw));
+    if (hasKeyword) {
+      return { skippable: true, reason: 'หน้าปกสัญญา' };
+    }
+  }
+
+  // Rule 3: Table of contents — many page number references
+  const pageRefPattern = /\.{2,}\s*\d+/g;
+  const pageRefs = (text.match(pageRefPattern) || []).length;
+  if (pageRefs >= 5) {
+    return { skippable: true, reason: 'สารบัญ (มีเลขหน้าอ้างอิงจำนวนมาก)' };
+  }
+
+  // Rule 4: Signature page — last page, very short, has signature keywords
+  if (pageNum >= totalPages - 1 && charCount < 200) {
+    const sigKeywords = ['ลงนาม', 'ผู้จ้าง', 'ลูกจ้าง', 'พยาน', 'วันที่'];
+    const hasSig = sigKeywords.some(kw => text.includes(kw));
+    if (hasSig && !text.includes('มาตรา')) {
+      return { skippable: true, reason: 'หน้าลงนาม (ไม่มีเนื้อหากฎหมาย)' };
+    }
+  }
+
+  return { skippable: false };
+}
+
